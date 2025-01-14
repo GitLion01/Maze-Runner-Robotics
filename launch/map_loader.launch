@@ -1,0 +1,7 @@
+<launch>
+    <!-- Starte die Map Loader Node -->
+    <node pkg="maze_bot_control" type="map_loader.py" name="map_loader" output="screen">
+        <!-- Parameter für die YAML-Datei -->
+        <param name="yaml_file" value="$(find maze_bot_control)/maps/my_maze_map.yaml"/>
+    </node>
+</launch>

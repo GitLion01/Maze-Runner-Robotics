@@ -1,0 +1,11 @@
+<launch>
+    <include file="$(find maze_pkg)/launch/maze.launch">
+        <arg name="maze_id" value="3"/>
+        <arg name="x_pos" value="-2.55"/>
+        <arg name="y_pos" value="1.0"/>
+        <arg name="yaw_pos" value="3.1516"/>
+    </include>
+
+    <node pkg="maze_bot_control" type="greedy_path_to_goal.py" name="greedy_path_to_goal" output="screen"/>
+    
+</launch>

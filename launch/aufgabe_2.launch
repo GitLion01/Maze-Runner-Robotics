@@ -1,0 +1,39 @@
+<launch>
+
+   <!-- DIES IST NOCH DIE ALTE LAUNCH FILE VON CARLOS-->
+
+    <!-- Arguments-->
+    <arg name="maze_id" default="2" doc="maze id [1, 2, 3, 4, 5, 6, 7]"/> 
+    <arg name="model" default="burger"/>
+    <arg name="start_x" default="-0.75"/>
+    <arg name="start_y" default="0.75"/>
+    <arg name="start_z" default="0.0"/>
+    <arg name="yaw_pos" default="3.141592654"/>
+
+    <!-- Include der zusätzlichen Launch-Datei -->
+    <include file="$(find maze_pkg)/launch/maze.launch">
+        <arg name="maze_id" value="2"/>
+        <arg name="x_pos" value="$(arg start_x)"/>
+        <arg name="y_pos" value="$(arg start_y)"/>
+        <arg name="yaw_pos" value="3.141592654"/>
+    </include>
+
+     <!-- Starte die SLAM Launch-Datei (Standard-Launchfile von ROS)
+    <include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch"/>-->
+
+    <!-- A*-Planner-Node-->
+    <node pkg="maze_bot_control" type="a_star_algorithm.py" name="a_star_planner" output="screen">
+    </node>
+
+    <!-- Path-Follower-Node-->
+    <node name="controller" pkg="maze_bot_control" type="tb3_driver.py" output="screen">
+        <param name="linear_speed" value="0.2" />
+        <param name="angular_speed" value="0.5" />
+        <param name="distance_threshold" value="0.1" />
+        <param name="angle_threshold" value="0.1" />
+    </node>
+
+    <!-- Unknown Maze Navigator Node -->
+    <node pkg="maze_bot_control" type="aufgabe_2.py" name="aufgabe2" output="screen">
+    </node>
+</launch>

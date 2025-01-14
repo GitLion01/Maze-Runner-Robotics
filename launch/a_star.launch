@@ -1,0 +1,48 @@
+<launch>
+    <!-- Pfade zu YAML- und PGM-Dateien als Parameter -->
+    <arg name="yaml_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze8.yaml"/>
+    <arg name="pgm_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/my_map23.pgm"/>
+    
+    <arg name="start_x" default="-0.9143911004066467"/>
+    <arg name="start_y" default="1.438549518585205"/>
+    <arg name="goal_x" default="-3.179800510406494"/>
+    <arg name="goal_y" default="3.0476670265197754"/>
+
+    <!-- Start the map server -->
+    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="/home/danny/catkin_ws/src/src/maze_bot_control/maps/my_map23.yaml" />
+
+
+    <!-- Include der zusätzlichen Launch-Datei -->
+    <include file="$(find maze_pkg)/launch/maze.launch">
+        <arg name="maze_id" value="2"/>
+        <arg name="x_pos" value="$(arg start_x)"/>
+        <arg name="y_pos" value="$(arg start_y)"/>
+        <arg name="yaw_pos" value="3.141592654"/>
+    </include>
+
+    <!-- Map-Loader-Node -->
+    <node pkg="maze_bot_control" type="map_loader.py" name="map_loader" output="screen">
+        <param name="yaml_file" value="$(arg yaml_file)"/>
+    </node>
+
+    <!-- A*-Planner-Node-->
+    <node pkg="maze_bot_control" type="a_star_algorithm.py" name="a_star_planner" output="screen">
+        <param name="start_x" value="$(arg start_x)"/>
+        <param name="start_y" value="$(arg start_y)"/>
+        <param name="goal_x" value="$(arg goal_x)"/>
+        <param name="goal_y" value="$(arg goal_y)"/>
+    </node>
+
+    <!-- Path-Follower-Node-->
+    <node name="controller" pkg="maze_bot_control" type="tb3_driver.py" output="screen">
+        <param name="linear_speed" value="0.2" />
+        <param name="angular_speed" value="0.5" />
+        <param name="distance_threshold" value="0.1" />
+        <param name="angle_threshold" value="0.1" />
+    </node>
+
+    <!-- Add a static transform between map and odom-->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" 
+          args="0 0 0 0 0 0 1 map odom" />
+
+</launch>
