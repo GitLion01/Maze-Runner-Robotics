@@ -24,20 +24,45 @@ class Node:
 
     def __hash__(self):
         return hash(self.position)
-
-    def get_neighbors(self, threshold = 0.03): # kann man anpassen
+    """
+    def get_neighbors(self, threshold=5):
         x, y = self.position
-        directions = [(threshold, 0), (-threshold, 0), (0, threshold), 
-                      (0, -threshold), (threshold, threshold), (-threshold, threshold), 
-                      (threshold, -threshold), (-threshold, -threshold)]  # Rechts, Links, Oben, Unten, Diagonale
+        neighbors = []#set()  # sets vermeiden Duplikate
+
+        for dx in range(-threshold, threshold + 1):
+            for dy in range(-threshold, threshold + 1):
+                if dx == 0 and dy == 0:
+                    continue  # überspringt current position
+                #neighbors.add((x + dx, y + dy))  
+                neighbors.append(Node((x + dx, y + dy)))
+        return neighbors
+        #return [Node(position) for position in neighbors]  # In Node-Objekte umwandeln und als Liste zurückgeben
+    """
+   
+    def get_neighbors(self, threshold = 5): # muss 5 bleiben,um ganze "Kreuzung zu speichern"
+        x, y = self.position
+        #directions = [(threshold, 0), (-threshold, 0), (0, threshold), 
+                      #(0, -threshold), (threshold, threshold), (-threshold, threshold), 
+                      #(threshold, -threshold), (-threshold, -threshold)]  # Rechts, Links, Oben, Unten, Diagonale
         neighbors = []
-        for dx, dy in directions:
-            new_x, new_y = x + dx, y + dy 
-            node = Node((new_x, new_y))
-            neighbors.append(node)
-            #rospy.loginfo(f"Nachbarn für {self.position}: {[n.position for n in neighbors]}")
-        #if not neighbors:
-            #rospy.logwarn(f"Keine gültigen Nachbarn für {self.position}.")
+        for i in range(threshold + 1):
+            for j in range(threshold + 1): # "range(5) ist 0,1,2,3,4"
+                if i == 0 and j == 0:
+                    continue
+                if i == 0 ^ j == 0: # "^" ist XOR
+                    directions = [(j, i), (-j, i)]
+                else:
+                    directions = [(j, i), (-j, i),  
+                            (j, -i), (-j, -i)]
+                for dx, dy in directions:
+                    new_x, new_y = x + dx, y + dy 
+                    node = Node((new_x, new_y))
+                    if node in neighbors:
+                        continue
+                    neighbors.append(node)
+                    #rospy.loginfo(f"Nachbarn für {self.position}: {[n.position for n in neighbors]}")
+                #if not neighbors:
+                    #rospy.logwarn(f"Keine gültigen Nachbarn für {self.position}.")
         return neighbors
     
     def save_neighbors(self):
@@ -98,6 +123,7 @@ class Turtlebot3Explorer:
 
     def odom_callback(self, msg: Odometry):
         """Update robot's current position and orientation from odometry."""
+        """
         if self.start_x == None and self.start_y == None:
             self.start_x = msg.pose.pose.position.x
             self.start_y = msg.pose.pose.position.y
@@ -106,9 +132,13 @@ class Turtlebot3Explorer:
             self.backtraced_nodes.append(node)
             #self.visited_nodes.add(node)
             rospy.logwarn("Node hinzugefügt!")
-
-        self.current_x= msg.pose.pose.position.x
-        self.current_y= msg.pose.pose.position.y
+        """
+        if not self.map:
+            rospy.logwarn("Warten auf SLAM.")
+        else:
+            self.current_x, self.current_y = self.real_to_pixel(msg.pose.pose.position.x, msg.pose.pose.position.y)
+        #self.current_x= msg.pose.pose.position.x
+        #self.current_y= msg.pose.pose.position.y
         self.current_yaw= msg.pose.pose.position.z
         
         # Extrahiere Orientierung des Roboters
@@ -148,11 +178,17 @@ class Turtlebot3Explorer:
         self.map_origin_y = msg.info.origin.position.y
         self.map_width = msg.info.width
         self.map_height = msg.info.height
+        #rospy.logerr(self.real_to_pixel(-1.5127006769180298,0.9310579895973206))
         
         # Konvertiere 1D-Kostendaten in eine 2D-Kostenkarte
         costmap_1d = msg.data
         self.costmap_2d = [costmap_1d[i:i + self.map_width] for i in range(0, len(costmap_1d), self.map_width)]
         rospy.loginfo("Map data converted to 2D costmap.")
+
+        # Debug print for the robot's current position in the costmap
+        robot_x, robot_y = self.real_to_pixel(self.current_x, self.current_y)
+        if 0 <= robot_x < self.map_width and 0 <= robot_y < self.map_height:
+            rospy.logwarn(f"Costmap value at robot position: {self.costmap_2d[robot_y][robot_x]}")
         
 
     def laser_scan_callback(self, msg):
@@ -199,8 +235,9 @@ class Turtlebot3Explorer:
     
     def path_callback(self, msg: PoseArray):
         """Receive and store the temp_path."""
-        self.temp_path = [(self.pixel_to_real(pose.position.x, pose.position.y)) for pose in msg.poses]
+        self.temp_path = [(pose.position.x, pose.position.y) for pose in msg.poses]
         rospy.logwarn(self.temp_path)
+        rospy.logwarn(f"Returning to: {self.temp_path[-1]} from: {self.temp_path[0]}")
 
     #Sirine
     def get_distance_to_goal(self, start_x, start_y, goal_x, goal_y):
@@ -224,11 +261,13 @@ class Turtlebot3Explorer:
             rospy.logwarn(f"right: {right_dist}, left: {left_dist}")
             #soufian
             #add the array to save the visited points
+            #node = Node((self.real_to_pixel(self.current_x, self.current_y)))
             node = Node((self.current_x, self.current_y))
-            if not self.is_node_in_backtraced_nodes(self.current_x, self.current_y):
+            if not self.is_node_in_backtraced_nodes(self.current_x, self.current_y): # "*" sorgt dafür, dass die Tupelwerte als separate argumente übergeben werden
                 node.save_neighbors()
                 self.backtraced_nodes.append(node)
-                #rospy.logwarn(f"backtraced_nodes nach Hinzufügen: {[node.position for node in self.backtraced_nodes]}")
+                rospy.logwarn(f"Node hinzugefügt: {node.position}, Nachbarn: {[neighbor.position for neighbor in node.neighbors]}")
+                rospy.logwarn(f"backtraced_nodes nach Hinzufügen: {[node.position for node in self.backtraced_nodes]}")
             
             cmd_vel.linear.x = 0
             direction = self.get_the_new_orientation() #the direction is used after 3 lines to define the direction of the rotation
@@ -236,7 +275,7 @@ class Turtlebot3Explorer:
             while ((rospy.Time.now() - self.obstacle_timer).to_sec() < 2.4): # rotate about 90 grad            
                 cmd_vel.angular.z = direction * 0.8 #you can adjust it to make sure that it rotate 90 grad
                 self.cmd_vel_pub.publish(cmd_vel)
-            rospy.loginfo(f"direction ist :{direction}")
+            #rospy.loginfo(f"direction ist :{direction}")
         
         cmd_vel.angular.z = 0
         cmd_vel.linear.x = self.linear_speed
@@ -272,7 +311,9 @@ class Turtlebot3Explorer:
             -1: Turn right 
             0: Move forward
         """
-        current_node = Node((self.current_x, self.current_y))#this is an instance
+        #current_node = Node(((self.real_to_pixel(self.current_x, self.current_y))))#this is an instance
+        current_node = Node((self.current_x, self.current_y))
+        current_node.save_neighbors()
         #current_position = (self.current_x, self.current_y) this is just a tuple representing the robot position
         
         #get the neigbors point of the current_node
@@ -448,13 +489,12 @@ class Turtlebot3Explorer:
     '''
     #Soufian
     def return_to_the_last_crossroads(self):
-        start_x = self.current_x
-        start_y = self.current_y
         if len(self.backtraced_nodes) == 0:
             rospy.logwarn("Keine backtraced nodes vorhanden!")
         else:
             goal_node = self.backtraced_nodes.pop() # immernoch in der visited_nodes Liste als letztes Element abrufbar, falls man doch nochmal dorthin muss...
-            self.publish_temp_map_and_points_to_a_star((start_x, start_y, 0.0), (goal_node.position[0], goal_node.position[1], 0.0)) # die a_star_planner node "triggert" auch den tb3_driver, der die Bewegung durchführt
+            rospy.logwarn(f"Backtraced Node: {goal_node.position}")
+            self.publish_temp_map_and_points_to_a_star((self.current_x, self.current_y, 0.0), (goal_node.position[0], goal_node.position[1], 0.0)) # die a_star_planner node "triggert" auch den tb3_driver, der die Bewegung durchführt
             # Methode soll nicht vor Erreichen des goals verlassen werden
             while self.get_distance_to_temp_goal(goal_node.position[0], goal_node.position[1]) > 0.03: # 0.03 entspricht distance_threshold aus tb3_driver
                 pass
@@ -463,8 +503,12 @@ class Turtlebot3Explorer:
         """
         Konvertiert Real-World-Koordinaten (Meter) in Pixel-Koordinaten.
         """
+        #rospy.loginfo(f"Converting real-world to pixel: Real=({real_x}, {real_y}), Origin=({self.map_origin_x}, {self.map_origin_y}), Resolution={self.map_resolution}")
+        
         pixel_x = int((real_x - self.map_origin_x) / self.map_resolution)
         pixel_y = int((real_y - self.map_origin_y) / self.map_resolution)
+
+        #rospy.loginfo(f"Resulting pixel coordinates: ({pixel_x}, {pixel_y})")
         return pixel_x, pixel_y
     
     def pixel_to_real(self, pixel_x, pixel_y):
@@ -490,18 +534,42 @@ class Turtlebot3Explorer:
         pkg.height = self.map.info.height
         pkg.origin = Point(self.map.info.origin.position.x, self.map.info.origin.position.y, 0.0)
 
-        pixel_temp_start_x, pixel_temp_start_y = self.real_to_pixel(temp_start[0], temp_start[1])
-        pixel_temp_goal_x, pixel_temp_goal_y = self.real_to_pixel(temp_goal[0], temp_goal[1])
+        if not self.map or not self.costmap_2d:
+            rospy.logwarn("Map or costmap is not ready.")
+            return
 
-        rospy.logwarn(f"Weltkoordinaten: x={temp_start[0]}, y={temp_start[1]}")
-        rospy.logwarn(f"Map-Origin: {pkg.origin}, Map-Resolution: {pkg.resolution}")
-        rospy.logwarn(f"Berechnete Pixel-Koordinaten: x={pixel_temp_start_x}, y={pixel_temp_start_y}")
+        #pixel_temp_start_x, pixel_temp_start_y = self.real_to_pixel(temp_start[0], temp_start[1])
+        #pixel_temp_goal_x, pixel_temp_goal_y = self.real_to_pixel(temp_goal[0], temp_goal[1])
+        pixel_temp_start_x, pixel_temp_start_y = temp_start[0], temp_start[1]
+        pixel_temp_goal_x, pixel_temp_goal_y = temp_goal[0], temp_goal[1]
+
+        if not (0 <= pixel_temp_start_x < self.map_width and 0 <= pixel_temp_start_y < self.map_height):
+            rospy.logerr(f"Start position out of bounds: x={pixel_temp_start_x}, y={pixel_temp_start_y}")
+            return
+
+        if not (0 <= pixel_temp_goal_x < self.map_width and 0 <= pixel_temp_goal_y < self.map_height):
+            rospy.logerr(f"Goal position out of bounds: x={pixel_temp_goal_x}, y={pixel_temp_goal_y}")
+            return
+
+        start_value = self.costmap_2d[pixel_temp_start_y][pixel_temp_start_x]
+        goal_value = self.costmap_2d[pixel_temp_goal_y][pixel_temp_goal_x]
+
+        rospy.logwarn(f"Start pixel value: {start_value}, Goal pixel value: {goal_value}")
+        rospy.logwarn(f"Converting real-world to pixel: Pixel_Value=({pixel_temp_start_x}, {pixel_temp_start_y}), Map_Origin=({self.map_origin_x}, {self.map_origin_y}), Map_Resolution={self.map_resolution}")
+
+        if start_value < 0 or goal_value < 0:
+            rospy.logerr(f"Start or goal lies on an obstacle or unknown area: Start={start_value}, Goal={goal_value}")
+            return
 
 
         self.temp_map_pub.publish(pkg)
-        self.temp_goal_pub.publish(Point(pixel_temp_goal_x, pixel_temp_goal_y, 0.0))
-        self.temp_start_pub.publish(Point(pixel_temp_start_x, pixel_temp_start_y, 0.0))
+        #self.temp_goal_pub.publish(Point(pixel_temp_goal_x, pixel_temp_goal_y, 0.0))
+        #self.temp_start_pub.publish(Point(pixel_temp_start_x, pixel_temp_start_y, 0.0))
 
+        self.temp_goal_pub.publish(Point(temp_goal[0], temp_goal[1], 0.0))
+        self.temp_start_pub.publish(Point(temp_start[0], temp_start[1], 0.0))
+
+    """
     def is_node_in_backtraced_nodes(self, curr_x, curr_y, tolerance=0.06):
         for node in self.backtraced_nodes:
             node_x, node_y = node.position
@@ -510,6 +578,13 @@ class Turtlebot3Explorer:
             if distance <= tolerance:
                 return True  # Node liegt im Bereich
         return False  # Keine passende Node gefunden
+    """
+    def is_node_in_backtraced_nodes(self, curr_x, curr_y):
+        for node in self.backtraced_nodes:
+            node_x, node_y = node.position
+            if node_x == curr_x and node_y == curr_y:
+                return True
+        return False
 
     
                 
