@@ -44,25 +44,23 @@ class Node:
         #directions = [(threshold, 0), (-threshold, 0), (0, threshold), 
                       #(0, -threshold), (threshold, threshold), (-threshold, threshold), 
                       #(threshold, -threshold), (-threshold, -threshold)]  # Rechts, Links, Oben, Unten, Diagonale
-        neighbors = []
-        for i in range(threshold + 1):
-            for j in range(threshold + 1): # "range(5) ist 0,1,2,3,4"
-                if i == 0 and j == 0:
+        neighbors = [[0 for _ in range(2 * threshold + 1)] for _ in range(2 * threshold + 1)]
+        all_neighbors = set()
+        for i in range(-threshold, threshold + 1):
+            for j in range(-threshold, threshold + 1): # "range(5) ist 0,1,2,3,4"
+                
+                directions = [(j, i)]
+
+            for dx, dy in directions:
+                new_x, new_y = x + dx, y + dy 
+                node = Node((new_x, new_y))
+                if node in all_neighbors:
                     continue
-                if i == 0 ^ j == 0: # "^" ist XOR
-                    directions = [(j, i), (-j, i)]
-                else:
-                    directions = [(j, i), (-j, i),  
-                            (j, -i), (-j, -i)]
-                for dx, dy in directions:
-                    new_x, new_y = x + dx, y + dy 
-                    node = Node((new_x, new_y))
-                    if node in neighbors:
-                        continue
-                    neighbors.append(node)
-                    #rospy.loginfo(f"Nachbarn für {self.position}: {[n.position for n in neighbors]}")
-                #if not neighbors:
-                    #rospy.logwarn(f"Keine gültigen Nachbarn für {self.position}.")
+                neighbors[j + threshold][i + threshold] = node
+                all_neighbors.add(node)
+                #rospy.loginfo(f"Nachbarn für {self.position}: {[n.position for n in neighbors]}")
+            #if not neighbors:
+                #rospy.logwarn(f"Keine gültigen Nachbarn für {self.position}.")
         return neighbors
     
     def save_neighbors(self):
@@ -86,6 +84,7 @@ class Turtlebot3Explorer:
         self.goal_y = 3.001408338546753 #map2#Endpunkt must be changed
         self.linear_speed = 0.1 #meters
         self.backtraced_nodes = []
+        self.visited_coordinates = set()
         self.laser_scan_msg = 0
 
         self.map = None
@@ -255,6 +254,13 @@ class Turtlebot3Explorer:
         front_dist = self.distances.get('front', float('inf'))
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
+
+        threshold = 5
+        for i in range(-threshold, threshold + 1):
+            self.visited_coordinates.add((self.current_x + i, self.current_y + i))
+        rospy.logwarn(f"visited_coordinates: {self.visited_coordinates}")
+        
+
         
 
         if  10 > left_dist > 0.4 or 10 > right_dist > 0.4:
@@ -266,8 +272,7 @@ class Turtlebot3Explorer:
             if not self.is_node_in_backtraced_nodes(self.current_x, self.current_y): # "*" sorgt dafür, dass die Tupelwerte als separate argumente übergeben werden
                 node.save_neighbors()
                 self.backtraced_nodes.append(node)
-                rospy.logwarn(f"Node hinzugefügt: {node.position}, Nachbarn: {[neighbor.position for neighbor in node.neighbors]}")
-                rospy.logwarn(f"backtraced_nodes nach Hinzufügen: {[node.position for node in self.backtraced_nodes]}")
+                rospy.logwarn("Kreuzung hinzugefügt!!!")
             
             cmd_vel.linear.x = 0
             direction = self.get_the_new_orientation() #the direction is used after 3 lines to define the direction of the rotation
@@ -312,8 +317,8 @@ class Turtlebot3Explorer:
             0: Move forward
         """
         #current_node = Node(((self.real_to_pixel(self.current_x, self.current_y))))#this is an instance
-        current_node = Node((self.current_x, self.current_y))
-        current_node.save_neighbors()
+        current_node = self.backtraced_nodes[-1] #Node((self.current_x, self.current_y))
+        #current_node.save_neighbors()
         #current_position = (self.current_x, self.current_y) this is just a tuple representing the robot position
         
         #get the neigbors point of the current_node
@@ -518,6 +523,7 @@ class Turtlebot3Explorer:
         real_x = (pixel_x * self.map_resolution) + self.map_origin_x
         real_y = (pixel_y * self.map_resolution) + self.map_origin_y
         return real_x, real_y
+    
     
     def convert_2d_to_1d(self, map_2d):
         return [int(cell) for row in map_2d for cell in row]
