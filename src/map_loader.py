@@ -20,13 +20,24 @@ class RobotTracker:
         self.map = None
         self.map_2d = None # Placeholder for 2D costmap
         # Set a dummy goal point in map coordinates
-        self.start_x = -0.9143911004066467
-        self.start_y = 1.438549518585205
-        self.start_z = -0.001434326171875
+        '''
+        self.start_x = -0.724765419960022
+        self.start_y = 0.7463579773902893
+        self.start_z = 0
         
-        self.goal_x = -3.179800510406494
-        self.goal_y = 3.0476670265197754
+        self.goal_x = -4.41406774520874
+        self.goal_y = 4.180548191070557
         self.goal_z = 0.0
+        '''
+
+        self.start_x = 0.03374290466308594
+        self.start_y = -0.0013123006792739
+        self.start_z = 0
+        
+        self.goal_x = 3.6837387084960938
+        self.goal_y = -3.395461082458496
+        self.goal_z = 0.0
+
         self.goal_position = None  # Placeholder for goal position in pixel coordinates
         self.start_position = None
 
@@ -49,8 +60,8 @@ class RobotTracker:
             #Extracts the Robot position from the Odometry message
             position = msg.pose.pose.position 
             # Adjust for map origin and convert to pixel coordinates
-            pixel_x = int((position.x - self.map_origin_x) / self.map_resolution)
-            pixel_y = int((position.y - self.map_origin_y) / self.map_resolution)
+            pixel_x = int(( (position.x) - self.map_origin_x) / self.map_resolution)
+            pixel_y = int(( (position.y) - self.map_origin_y) / self.map_resolution)
             #convert the map/costmap from 1D to 2D ... 
 
             #Create a Point message with the pixel coordinates
@@ -90,6 +101,7 @@ class RobotTracker:
         # Initialize map origin and resolution
         self.map_origin_x = self.map.origin.position.x
         self.map_origin_y = self.map.origin.position.y
+        self.start_z = self.map.origin.position.z
         self.map_resolution = self.map.resolution
         width = self.map.width
         height = self.map.height
@@ -100,7 +112,7 @@ class RobotTracker:
 
         # Create modified map with extended walls
         self.map_2d_modified = [list(row) for row in self.map_2d]
-        wall_extension = 5  # Number of cells to extend walls
+        wall_extension = 4  # Number of cells to extend walls
         self.add_100_to_the_next_points(height,width,wall_extension)
         
         # Convert modified 2D map back to 1D
@@ -150,7 +162,7 @@ class RobotTracker:
         for y in range(height):
             for x in range(width):
                 if self.map_2d[y][x] == 100:  # If it's a wall
-                    self.check_if_corner(y,x) # convert the point after the corner to 100
+                    #self.check_if_corner(y,x) # convert the point after the corner to 100
                     for dy in range(-wall_extension, wall_extension + 1):
                         for dx in range(-wall_extension, wall_extension + 1):
                             nx, ny = x + dx, y + dy
@@ -166,33 +178,6 @@ class RobotTracker:
                     return True
         return False
     
-    def check_if_corner(self,y,x):
-        if not self.check_if_start_or_end_100(y,x):
-            #check if this is a corner
-            if self.map_2d[y][x-1] == 100 and self.map_2d[y-1][x] == 100 : #  __
-                self.map_2d_modified[y+1][x+1] = 100                         #  |
-                self.map_2d_modified[y+2][x+2] = 100
-
-                self.map_2d_modified[y][x+1] = 100
-                self.map_2d_modified[y+1][x] = 100
-            elif self.map_2d[y][x+1] == 100 and self.map_2d[y-1][x] == 100 :        #  __
-                self.map_2d_modified[y+1][x-1] = 100                                # |
-                self.map_2d_modified[y+2][x-2] = 100
-
-                self.map_2d_modified[y][x-1] = 100
-                self.map_2d_modified[y+1][x] = 100
-            elif self.map_2d[y][x+1] == 100 and self.map_2d[y+1][x] == 100 :  # |
-                self.map_2d_modified[y-1][x-1] = 100                          # ---
-                self.map_2d_modified[y-2][x-2] = 100
-
-                self.map_2d_modified[y-1][x] = 100
-                self.map_2d_modified[y][x-1] = 100
-            elif self.map_2d[y][x-1] == 100 and self.map_2d[y+1][x] == 100 :        # |
-                self.map_2d_modified[y-1][x+1] = 100                             #  ---
-                self.map_2d_modified[y-2][x+2] = 100
-
-                self.map_2d_modified[y][x+1] = 100
-                self.map_2d_modified[y-1][x] = 100
     
     def publish_walls_after_edition(self):
         '''

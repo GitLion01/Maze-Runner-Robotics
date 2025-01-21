@@ -1,21 +1,15 @@
 <launch>
 
-   <!-- DIES IST NOCH DIE ALTE LAUNCH FILE VON CARLOS-->
-
     <!-- Arguments-->
-    <arg name="maze_id" default="2" doc="maze id [1, 2, 3, 4, 5, 6, 7]"/> 
-    <arg name="model" default="burger"/>
-    <arg name="start_x" default="-0.75"/>
-    <arg name="start_y" default="0.75"/>
+    <arg name="start_x" default="0.03374290466308594"/>
+    <arg name="start_y" default="-0.0013123006792739"/>
     <arg name="start_z" default="0.0"/>
-    <arg name="yaw_pos" default="3.141592654"/>
+    <arg name="goal_x" default="3.6837387084960938"/>
+    <arg name="goal_y" default="-3.395461082458496"/>
 
-    <!-- Include der zusätzlichen Launch-Datei -->
+
     <include file="$(find maze_pkg)/launch/maze.launch">
-        <arg name="maze_id" value="2"/>
-        <arg name="x_pos" value="$(arg start_x)"/>
-        <arg name="y_pos" value="$(arg start_y)"/>
-        <arg name="yaw_pos" value="3.141592654"/>
+        <arg name="maze_id" value="8"/>
     </include>
 
      <!-- Starte die SLAM Launch-Datei (Standard-Launchfile von ROS)

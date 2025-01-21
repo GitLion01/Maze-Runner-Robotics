@@ -158,9 +158,9 @@ class AStar:
 
             self.closed_list.add(current)
             if current.position == self.goal.position:
-                    rospy.logwarn("goal reached")
+                    #rospy.logwarn("goal reached")
                     path = self.reconstruct_path(current)
-                    rospy.logwarn(path)
+                    #rospy.logwarn(path)
                     return path
 
             # Nachbarn generieren
@@ -395,7 +395,7 @@ class AStarNode:
             path_msg.poses.append(pose)
 
         self.real_world_path.publish(path_msg)
-        #rospy.loginfo("Pfad in Weltkoordinaten veröffentlicht.")
+        rospy.loginfo(f"{self.real_world_path}")
 
     def run(self):
         rate = rospy.Rate(10)  # 10 Hz

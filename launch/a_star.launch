@@ -1,26 +1,20 @@
 <launch>
     <!-- Pfade zu YAML- und PGM-Dateien als Parameter -->
     <arg name="yaml_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze8.yaml"/>
-    <arg name="pgm_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/my_map23.pgm"/>
+    <arg name="pgm_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze8.pgm"/>
     
-    <arg name="start_x" default="-0.9143911004066467"/>
-    <arg name="start_y" default="1.438549518585205"/>
-    <arg name="goal_x" default="-3.179800510406494"/>
-    <arg name="goal_y" default="3.0476670265197754"/>
-
-    <!-- Start the map server -->
-    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="/home/danny/catkin_ws/src/src/maze_bot_control/maps/my_map23.yaml" />
-
-
+    <arg name="start_x" default="0.03374290466308594"/>
+    <arg name="start_y" default="-0.0013123006792739"/>
+    
+    <arg name="goal_x" default="3.6837387084960938"/>
+    <arg name="goal_y" default="-3.395461082458496"/>
+    
     <!-- Include der zusätzlichen Launch-Datei -->
     <include file="$(find maze_pkg)/launch/maze.launch">
-        <arg name="maze_id" value="2"/>
-        <arg name="x_pos" value="$(arg start_x)"/>
-        <arg name="y_pos" value="$(arg start_y)"/>
-        <arg name="yaw_pos" value="3.141592654"/>
+        <arg name="maze_id" value="8"/>
     </include>
 
-    <!-- Map-Loader-Node -->
+    <!-- Map-Loader-Node x -->
     <node pkg="maze_bot_control" type="map_loader.py" name="map_loader" output="screen">
         <param name="yaml_file" value="$(arg yaml_file)"/>
     </node>
@@ -41,8 +35,13 @@
         <param name="angle_threshold" value="0.1" />
     </node>
 
-    <!-- Add a static transform between map and odom-->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom" 
-          args="0 0 0 0 0 0 1 map odom" />
+    <!-- Add a static transform between map and odom
+    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom"
+        args="-0.75 0.75 0 0 0 map odom" />-->
+    <!--args="x y z roll pitch yaw frame_id child_frame_id"-->
+
+    <!--<remap from="tf" to="tf_override"/>
+    <remap from="tf_static" to="tf_static_override"/>-->
+    
 
 </launch>
