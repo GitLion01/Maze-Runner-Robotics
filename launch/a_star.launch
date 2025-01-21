@@ -35,13 +35,4 @@
         <param name="angle_threshold" value="0.1" />
     </node>
 
-    <!-- Add a static transform between map and odom
-    <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom"
-        args="-0.75 0.75 0 0 0 map odom" />-->
-    <!--args="x y z roll pitch yaw frame_id child_frame_id"-->
-
-    <!--<remap from="tf" to="tf_override"/>
-    <remap from="tf_static" to="tf_static_override"/>-->
-    
-
 </launch>
