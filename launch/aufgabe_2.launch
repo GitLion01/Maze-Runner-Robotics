@@ -11,22 +11,7 @@
     <include file="$(find maze_pkg)/launch/maze.launch">
         <arg name="maze_id" value="8"/>
     </include>
-
-     <!-- Starte die SLAM Launch-Datei (Standard-Launchfile von ROS)
-    <include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch"/>-->
-
-    <!-- A*-Planner-Node-->
-    <node pkg="maze_bot_control" type="a_star_algorithm.py" name="a_star_planner" output="screen">
-    </node>
-
-    <!-- Path-Follower-Node-->
-    <node name="controller" pkg="maze_bot_control" type="tb3_driver.py" output="screen">
-        <param name="linear_speed" value="0.2" />
-        <param name="angular_speed" value="0.5" />
-        <param name="distance_threshold" value="0.1" />
-        <param name="angle_threshold" value="0.1" />
-    </node>
-
+    
     <!-- Unknown Maze Navigator Node -->
     <node pkg="maze_bot_control" type="aufgabe_2.py" name="aufgabe2" output="screen">
     </node>

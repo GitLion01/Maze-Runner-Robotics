@@ -70,6 +70,7 @@ class Node:
 class Turtlebot3Explorer:
     def __init__(self):
         rospy.init_node('aufgabe2', anonymous=True)
+        rospy.loginfo("aufgabe_2 initialized")
 
         # SLAM und Kartierungsvariablen
         self.return_to_x = []  # Store X coordinates of blocked dead-ends
@@ -77,11 +78,14 @@ class Turtlebot3Explorer:
         self.current_x = 0.0
         self.current_y = 0.0
         self.current_yaw = 0.0
+
+        self.current_x_real = 0.03374290466308594
+        self.current_y_real = -0.0013123006792739
         
         self.start_x = None
         self.start_y = None
-        self.goal_x = -3.1363425254821777  #map2#Endpunkt must be changed
-        self.goal_y = 3.001408338546753 #map2#Endpunkt must be changed
+        self.goal_x = 3.6837387084960938
+        self.goal_y = -3.395461082458496 
         self.linear_speed = 0.1 #meters
         self.backtraced_nodes = []
         self.visited_coordinates = set()
@@ -118,27 +122,16 @@ class Turtlebot3Explorer:
         self.scan_sub = rospy.Subscriber("scan", LaserScan, self.laser_scan_callback)
         self.odom_sub = rospy.Subscriber("odom", Odometry, self.odom_callback)
         self.map_sub = rospy.Subscriber("map", OccupancyGrid, self.map_callback)
-        self.path_sub = rospy.Subscriber("/planned_path", PoseArray, self.path_callback)
 
     def odom_callback(self, msg: Odometry):
         """Update robot's current position and orientation from odometry."""
-        """
-        if self.start_x == None and self.start_y == None:
-            self.start_x = msg.pose.pose.position.x
-            self.start_y = msg.pose.pose.position.y
-            node = Node((self.start_x, self.start_y))
-            node.save_neighbors()
-            self.backtraced_nodes.append(node)
-            #self.visited_nodes.add(node)
-            rospy.logwarn("Node hinzugefügt!")
-        """
         if not self.map:
             rospy.logwarn("Warten auf SLAM.")
         else:
             self.current_x, self.current_y = self.real_to_pixel(msg.pose.pose.position.x, msg.pose.pose.position.y)
-        #self.current_x= msg.pose.pose.position.x
-        #self.current_y= msg.pose.pose.position.y
-        self.current_yaw= msg.pose.pose.position.z
+            self.current_x_real=-msg.pose.pose.position.x-0.75
+            self.current_y_real=-msg.pose.pose.position.y+0.75
+            self.current_yaw= msg.pose.pose.position.z
         
         # Extrahiere Orientierung des Roboters
         orientation_q = msg.pose.pose.orientation
@@ -153,16 +146,15 @@ class Turtlebot3Explorer:
 
     def get_angle_to_goal(self, goal_x, goal_y):
         """Calculate angle to the goal relative to robot's current heading."""
-        goal_angle = math.atan2(goal_y - self.current_y, goal_x - self.current_x)
-        angle_diff = goal_angle - self.current_yaw
+        dy = goal_y - self.current_y_real
+        dx = goal_x - self.current_x_real
         
-        # Normalize angle to [-pi, pi]
-        while angle_diff > math.pi:
-            angle_diff -= 2 * math.pi
-        while angle_diff < -math.pi:
-            angle_diff += 2 * math.pi
-            
-        return angle_diff
+        # Invert the y-coordinates if your coordinate system has y increasing downwards
+        goal_angle = math.atan2(dy, dx)
+        angle_diff = goal_angle - self.current_yaw
+        angle_diff_2 = (angle_diff) % (2 * math.pi) - math.pi
+        
+        return angle_diff_2
     
     def map_callback(self, msg: OccupancyGrid):
 
@@ -189,7 +181,6 @@ class Turtlebot3Explorer:
         if 0 <= robot_x < self.map_width and 0 <= robot_y < self.map_height:
             rospy.logwarn(f"Costmap value at robot position: {self.costmap_2d[robot_y][robot_x]}")
         
-
     def laser_scan_callback(self, msg):
         """Process LiDAR scan data to detect walls and obstacles."""
         # Convert angles from degrees to array indices
@@ -231,22 +222,10 @@ class Turtlebot3Explorer:
         #if self.check_closed_way(msg):
             #self.return_to_the_last_crossroads()
 
-    
-    def path_callback(self, msg: PoseArray):
-        """Receive and store the temp_path."""
-        self.temp_path = [(pose.position.x, pose.position.y) for pose in msg.poses]
-        rospy.logwarn(self.temp_path)
-        rospy.logwarn(f"Returning to: {self.temp_path[-1]} from: {self.temp_path[0]}")
 
-    #Sirine
-    def get_distance_to_goal(self, start_x, start_y, goal_x, goal_y):
-        """Calculate Euclidean distance between two points."""
-        return math.sqrt((goal_x - start_x)**2 + (goal_y - start_y)**2) / 100
-
-    
     def get_distance_to_temp_goal(self, goal_x, goal_y):
         """Calculate Euclidean distance to the goal."""
-        return math.sqrt((goal_x - self.current_x)**2 + (goal_y - self.current_y)**2)/100
+        return math.sqrt((goal_x - self.current_x_real)**2 + (goal_y - self.current_y_real)**2)
     
     
     def move(self):
@@ -258,45 +237,48 @@ class Turtlebot3Explorer:
         threshold = 5
         for i in range(-threshold, threshold + 1):
             self.visited_coordinates.add((self.current_x + i, self.current_y + i))
-        rospy.logwarn(f"visited_coordinates: {self.visited_coordinates}")
+        # rospy.logwarn(f"visited_coordinates: {self.visited_coordinates}")
         
-
-        
-
-        if  10 > left_dist > 0.4 or 10 > right_dist > 0.4:
+        if  10 > left_dist > 0.4 or 10 > right_dist > 0.4: # add : add distance to current Node is not smaller that 0.5, because 0.5 is the width of the tunle
+            '''
+            father erstellt
+            an dem father hinzufügen
+            current node moved to the front node (aktuelle Node)
+            '''
+            '''
             rospy.logwarn(f"right: {right_dist}, left: {left_dist}")
-            #soufian
-            #add the array to save the visited points
             #node = Node((self.real_to_pixel(self.current_x, self.current_y)))
             node = Node((self.current_x, self.current_y))
             if not self.is_node_in_backtraced_nodes(self.current_x, self.current_y): # "*" sorgt dafür, dass die Tupelwerte als separate argumente übergeben werden
                 node.save_neighbors()
                 self.backtraced_nodes.append(node)
                 rospy.logwarn("Kreuzung hinzugefügt!!!")
-            
+            '''
             cmd_vel.linear.x = 0
             direction = self.get_the_new_orientation() #the direction is used after 3 lines to define the direction of the rotation
-            self.obstacle_timer = rospy.Time.now()
-            while ((rospy.Time.now() - self.obstacle_timer).to_sec() < 2.4): # rotate about 90 grad            
-                cmd_vel.angular.z = direction * 0.8 #you can adjust it to make sure that it rotate 90 grad
-                self.cmd_vel_pub.publish(cmd_vel)
-            #rospy.loginfo(f"direction ist :{direction}")
-        
-        cmd_vel.angular.z = 0
-        cmd_vel.linear.x = self.linear_speed
-        #rospy.loginfo(f"speed: {cmd_vel.linear.x}, distnace: {front_dist}")
-        
-        self.cmd_vel_pub.publish(cmd_vel)
-        
-        
-        self.correct_the_position(left_dist,right_dist)
+            if direction != 0:
+                while abs(self.current_yaw) - (direction* math.pi/2) > 0.01:
+                    cmd_vel.angular.z =  direction*0.4
+                    self.cmd_vel_pub.publish(cmd_vel)
+            rospy.loginfo(f"yaw: {self.current_yaw}, pi: {math.pi/2}, z {cmd_vel.angular.z}")
+        else: 
+            rospy.loginfo(f" left : {left_dist}, right {right_dist}")
+            cmd_vel.angular.z = 0
+            cmd_vel.linear.x = 0.4
+            #rospy.loginfo(f"speed: {cmd_vel.linear.x}, distnace: {front_dist}")
+            
+            self.cmd_vel_pub.publish(cmd_vel)
+            
+            
+            '''
+            self.correct_the_position(left_dist,right_dist)
 
-        if self.laser_scan_msg != 0:
-            if self.check_closed_way():
-                # Bedingung muss angepasst werden return_to_the_last_crossroads() soll nur aufgerufen werden, wenn es eine Sackgasse gibt 
-                # bzw. der Robotererkennt, dass der Pfad ihn nicht weiterführt, weil er diesen schon abgeklappert hat 
-                self.return_to_the_last_crossroads()
-        
+            if self.laser_scan_msg != 0:
+                if self.check_closed_way():
+                    # Bedingung muss angepasst werden return_to_the_last_crossroads() soll nur aufgerufen werden, wenn es eine Sackgasse gibt 
+                    # bzw. der Robotererkennt, dass der Pfad ihn nicht weiterführt, weil er diesen schon abgeklappert hat 
+                    self.return_to_the_last_crossroads()
+            '''
           
            
     '''
@@ -316,172 +298,21 @@ class Turtlebot3Explorer:
             -1: Turn right 
             0: Move forward
         """
-        #current_node = Node(((self.real_to_pixel(self.current_x, self.current_y))))#this is an instance
-        current_node = self.backtraced_nodes[-1] #Node((self.current_x, self.current_y))
-        #current_node.save_neighbors()
-        #current_position = (self.current_x, self.current_y) this is just a tuple representing the robot position
-        
-        #get the neigbors point of the current_node
-        #in the array 0: rechts, 1: links, 2: oben, 3: unten
-        z = self.current_yaw
-        if -0.75 < z <= -2.25: #the robot is looking at the up side
-            right_neighbor = current_node.neighbors[0]  # Right neighbor
-            left_neighbor = current_node.neighbors[1]  # Left neighbor
-            front_neighbor = current_node.neighbors[2]  # front neighbor 
-        elif -2.25 < z <= -3 or 2.25 < z <= 3: #the robot is looking at the left side
-            right_neighbor = current_node.neighbors[2]  # Right neighbor
-            left_neighbor = current_node.neighbors[3]  # Left neighbor
-            front_neighbor = current_node.neighbors[1]  # front neighbor 
-        elif 0.75 < z <= 2.25: #the robot is looking at the down side
-            right_neighbor = current_node.neighbors[1]  # Right neighbor
-            left_neighbor = current_node.neighbors[0]  # Left neighbor
-            front_neighbor = current_node.neighbors[3]  # front neighbor
-        else: #the robot is looking at the right side
-            right_neighbor = current_node.neighbors[3]  # Right neighbor
-            left_neighbor = current_node.neighbors[2]  # Left neighbor
-            front_neighbor = current_node.neighbors[0]  # front neighbor
-
-
-        # Get obstacle distances from LiDAR
-        front_dist = self.distances.get('front', float('inf'))
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
 
         # Check if paths are clear
-        front_clear = front_dist > 0.4
         left_clear = left_dist > 0.4
         right_clear = right_dist > 0.4
 
-        # Check if neighbors have been visited
-        right_visited = right_neighbor in self.backtraced_nodes
-        left_visited = left_neighbor in self.backtraced_nodes
-        front_visited = front_neighbor in self.backtraced_nodes 
 
-        # Calculate the distance from each neighbor to the goal
-        front_distance_to_goal = -1
-        left_distance_to_goal = -1
-        right_distance_to_goal = -1
-         
-        # Debugging logs
-        #rospy.loginfo(f"Clear paths: Front: {front_clear}, Left: {left_clear}, Right: {right_clear}")
-        #rospy.loginfo(f"Visited states: Front: {front_visited}, Left: {left_visited}, Right: {right_visited}")
-        #rospy.loginfo(f"Distances to goal: Front: {front_distance_to_goal}, Left: {left_distance_to_goal}, Right: {right_distance_to_goal}")
-        if front_clear and not front_visited:
-            front_distance_to_goal = self.get_distance_to_goal(front_neighbor.position[0], front_neighbor.position[1], self.goal_x, self.goal_y)
-        if right_clear and not right_visited:
-            right_distance_to_goal = self.get_distance_to_goal(right_neighbor.position[0], right_neighbor.position[1], self.goal_x, self.goal_y)
-        if left_clear and not left_visited:
-            left_distance_to_goal = self.get_distance_to_goal(left_neighbor.position[0], left_neighbor.position[1], self.goal_x, self.goal_y)
-        
-        if left_distance_to_goal <= right_distance_to_goal:
-            if left_distance_to_goal <= front_distance_to_goal:
-                return -1
-            else:
-                return 0
-        elif right_distance_to_goal <= front_distance_to_goal:
+        if right_clear:
+            #self.goal_yaw = 
+            return -1
+        elif left_clear:
             return 1
         else:
             return 0
-        
-
-        '''
-        # All three paths are clear
-        if front_clear and left_clear and right_clear:
-            # Check if all paths are visited
-            if front_visited and left_visited and right_visited:
-                rospy.logwarn("All paths (front, left, right) are already visited.")
-                return None  # Or trigger backtracking if needed
-
-            # If only front is visited
-            if front_visited and not left_visited and not right_visited:
-                return 1 if left_distance_to_goal < right_distance_to_goal else -1  
-                # Choose between left and right
-
-            # If only left is visited
-            if left_visited and not front_visited and not right_visited:
-                return 0 if front_distance_to_goal < right_distance_to_goal else -1  
-                # Choose between front and right
-
-            # If only right is visited
-            if right_visited and not front_visited and not left_visited:
-                return 0 if front_distance_to_goal < left_distance_to_goal else 1  
-                # Choose between front and left
-
-            # If front and left are visited, turn right
-            if front_visited and left_visited and not right_visited:
-                return -1  # Turn right
-
-            # If front and right are visited, turn left
-            if front_visited and right_visited and not left_visited:
-                return 1  # Turn left
-
-            # If left and right are visited, move forward
-            if left_visited and right_visited and not front_visited:
-                return 0  # Move forward
-
-            # If none are visited, choose the shortest distance to the goal
-            min_distance = min(front_distance_to_goal, left_distance_to_goal, right_distance_to_goal)
-            if min_distance == front_distance_to_goal:
-                return 0  # Move forward
-            return 1 if min_distance == left_distance_to_goal else -1  # Turn left or right
-
-        # Front and left are clear
-        if front_clear and left_clear:
-        
-            # If front is visited, return left
-            if front_visited and not left_visited:
-                return 1  # Turn left
-
-            # If left is visited, return front
-            if left_visited and not front_visited:
-                return 0  # Move forward
-
-            # If neither is visited, compare distances
-            if front_distance_to_goal < left_distance_to_goal:
-                return 0  # Move forward 
-            return 1  # Turn left
-
-        # Front and right are clear
-        if front_clear and right_clear:
-            
-            # If front is visited, return right
-            if front_visited and not right_visited:
-                return -1  # Turn right
-
-            # If right is visited, return front
-            if right_visited and not front_visited:
-                return 0  # Move forward
-            
-            # If neither is visited, compare distances
-            if front_distance_to_goal < right_distance_to_goal:
-                return 0  # Move forward
-            return -1  # Turn right
-      
-        # Left and right are clear
-        if left_clear and right_clear:
-        
-            # If left is visited, return right
-            if left_visited and not right_visited:
-                return -1  # Turn right
-
-            # If right is visited, return left
-            if right_visited and not left_visited:
-                return 1  # Turn left
- 
-            # If neither is visited, compare distances
-            if left_distance_to_goal < right_distance_to_goal:
-                return 1  # Turn left
-            return -1  # Turn right
-
-        # Only one path is clear
-        if front_clear and not front_visited and not left_clear and not right_clear:
-            return 0  # Move forward
-        if left_clear and not left_visited and not front_clear and not right_clear:
-            return 1  # Turn left
-        if right_clear and not right_visited and not left_clear and not front_visited:
-            return -1  # Turn right
-        '''
-
 
     '''
     go back to the last point where you were before you made the dissicion to turn left or right
@@ -593,9 +424,6 @@ class Turtlebot3Explorer:
         return False
 
     
-                
-                
-   
 
     """
     def convert_2d_to_1d(self, map_2d, width, height):
@@ -668,7 +496,7 @@ class Turtlebot3Explorer:
             return max_gap < MIN_PASSAGE_WIDTH
         
         #Check each direction
-        for direction, angle_ranges in ANGLE_RANGES.items():
+        for _, angle_ranges in ANGLE_RANGES.items():
             for angle_range in angle_ranges:
                 if not analyze_direction(angle_range):
                     #rospy.loginfo(f"Passage found in {direction} direction")
@@ -676,59 +504,44 @@ class Turtlebot3Explorer:
         
         rospy.loginfo("All directions appear closed")
         return True
-        
+    
 
-    #using the black points
-    #needs SLAM
-    #Danny
-    '''
-    def check_closed_way(self, current_x,current_y):
-        """
-        Check if the path is closed by analyzing nearby black points in the occupancy grid.
-        """
-        if self.map is None:
-            return False  # Map not received yet
-        rospy.loginfo("map received")
+    def move_to_goal(self,goal_x,goal_y):
 
-        MAX_GAP_THRESHOLD = 12  # cells (adjust based on your needs)
-        SEARCH_RADIUS = 20  # cells to check around robot
+        # Calculate distance and angle to goal
+        distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
+        angle_diff = self.get_angle_to_goal(goal_x, goal_y)
         
-        # Convert robot position to map coordinates
-        robot_x = int((current_x - self.map_origin_x) / self.map_resolution)
-        robot_y = int((current_y - self.map_origin_y) / self.map_resolution)
+        cmd_vel = Twist()
         
-        # Check points in front, left, and right directions
-        angles_to_check = [
-            0,      # front
-            90,     # left
-            -90     # right
-        ]
-        
-        for angle in angles_to_check:
-            # Convert angle to radians
-            angle_rad = math.radians(angle)
+        while (distance_to_goal < 0.1):
+            if abs(angle_diff) > 0.1:
+                cmd_vel.linear.x = 0.0
+                if abs(angle_diff) > 0.4:
+                    cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
+                elif abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
+                elif abs(angle_diff) > 0.1:
+                    cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
+            else:
+                cmd_vel.angular.z = 0.0
+                if distance_to_goal > 1:
+                    cmd_vel.linear.x = 0.5
+                elif distance_to_goal > 0.5:
+                    cmd_vel.linear.x = 0.4
+                elif distance_to_goal > 0.3:
+                    cmd_vel.linear.x = 0.2
+                elif distance_to_goal > 0.1:
+                    cmd_vel.linear.x = 0.15
             
-            # Look along this direction
-            for dist in range(SEARCH_RADIUS):
-                # Calculate point to check
-                check_x = int(robot_x + dist * math.cos(angle_rad))
-                check_y = int(robot_y + dist * math.sin(angle_rad))
-                
-                # Get cell value (if it's occupied)
-                cell_index = check_y * self.map.info.width + check_x
-                if 0 <= cell_index < len(self.map.data):
-                    if self.map.data[cell_index] == 100:  # Found black point
-                        break
-                        
-                # If we've gone too far without finding a wall
-                if dist >= MAX_GAP_THRESHOLD:
-                    rospy.loginfo(f"dist: {dist}")
-                    return False
-                    
-        return True
+            self.cmd_vel_pub.publish(cmd_vel)
+        
+        cmd_vel.linear.x = 0.0
+        cmd_vel.angular.z = 0.0
+        self.cmd_vel_pub.publish(cmd_vel)
 
-    '''
-
+        
+    
     '''
     return: publish the corrected position
     goal: try to keep the robot in the middle between the walls
@@ -766,10 +579,10 @@ class Turtlebot3Explorer:
         # Hauptkontrollschleife
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            #when set the goal remove the commented next 3 lines
-            #if self.get_distance_to_temp_goal(self.goal_x,self.goal_y) < 0.1:
-                #self.stop_robot()
-                #break
+            if self.get_distance_to_temp_goal(self.goal_x,self.goal_y) < 0.1:
+                rospy.loginfo("goal reached")
+                self.stop_robot()
+                break
             self.move()
             rospy.sleep(0.1)  # Pause for smooth data processing
             rate.sleep()
