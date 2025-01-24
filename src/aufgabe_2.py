@@ -207,16 +207,18 @@ class Turtlebot3Explorer:
         
         if  10 > self.distances_min.get('left', float('inf')) > 0.4 or 10 > self.distances_min.get('right', float('inf')) > 0.4: # add : add distance to current Node is not smaller that 0.5, because 0.5 is the width of the tunle
             direction= self.get_the_new_orientation()
-            if direction == -1:
-                self.get_new_goal(direction, right_dist)
-                #rospy.loginfo(f"distance right: {right_dist}")
-            elif direction == 1:
-                self.get_new_goal(direction, left_dist)
-                #rospy.loginfo(f"distance left: {left_dist}")
-            else:
-                self.get_new_goal(direction, front_dist)
-                #rospy.loginfo(f"distance front: {front_dist}")
+            if cmd_vel.angular.z == 0:
+                if direction == -1:
+                    self.get_new_goal(direction, right_dist)
+                    #rospy.loginfo(f"distance right: {right_dist}")
+                elif direction == 1:
+                    self.get_new_goal(direction, left_dist)
+                    #rospy.loginfo(f"distance left: {left_dist}")
+                else:
+                    self.get_new_goal(direction, front_dist)
+                    #rospy.loginfo(f"distance front: {front_dist}")
 
+            '''
             #self.curr_parent = self.curr_node.parent
             #if self.get_distance_to_temp_goal(self.curr_node.x, self.curr_node.y) > 0.3:
             if self.curr_node.left is not None:
@@ -263,8 +265,9 @@ class Turtlebot3Explorer:
 
             #rospy.loginfo("Protokolliere alle Nodes:")
             self.log_all_nodes(self.curr_node)
+            '''
 
-            
+        rospy.logwarn(f"x: {self.temp_goal_x} , y: {self.temp_goal_y}")    
         self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
         '''
         else: 
@@ -314,7 +317,6 @@ class Turtlebot3Explorer:
 
 
         if right_clear:
-            #self.goal_yaw = 
             return -1
         elif left_clear:
             return 1
@@ -334,7 +336,7 @@ class Turtlebot3Explorer:
             if direction == 1 or direction == -1:
                 x= self.current_x_real
                 y= self.get_the_y(distance)
-                rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}, goal y : {y}")
+                #rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}, goal y : {y}")
             else:
                 y= self.current_y_real
                 x= self.get_the_x(distance)
@@ -364,12 +366,12 @@ class Turtlebot3Explorer:
             rospy.logwarn("Node besitzt kein Parent")
             return
         goal_x, goal_y = self.curr_node.parent.x, self.curr_node.parent.y
-        
-        cmd_vel = Twist()
+
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
-        while (distance_to_goal > 0.1):
+        cmd_vel = Twist()
+        while distance_to_goal>0.1:
             self.move_to_goal(goal_x, goal_y)
-        
+
         cmd_vel.linear.x = 0.0
         cmd_vel.angular.z = 0.0
         self.cmd_vel_pub.publish(cmd_vel)
@@ -450,7 +452,6 @@ class Turtlebot3Explorer:
         # Calculate distance and angle to goal
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
         angle_diff = self.get_angle_to_goal(goal_x, goal_y)
-        
         cmd_vel = Twist()
         
         if abs(angle_diff) > 0.1:
@@ -471,9 +472,8 @@ class Turtlebot3Explorer:
                 cmd_vel.linear.x = 0.2
             elif distance_to_goal > 0.1:
                 cmd_vel.linear.x = 0.15
-            
+        
         self.cmd_vel_pub.publish(cmd_vel)
-
         
     
     '''
