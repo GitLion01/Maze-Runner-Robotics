@@ -18,10 +18,11 @@ class Node:
         self.x = 0.0
         self.y = 0.0
         self.parent = None #Node
-        self.right = None #Node
-        self.left = None #Node
-        self.front = None #Node
-        self.visited = False 
+        self.node_1 = None #Node
+        self.node_2 = None #Node
+        self.node_3 = None #Node
+        self.visited = False
+        self.number_of_roads = 0
         
     def __eq__(self, other):
         if not isinstance(other, Node):
@@ -66,6 +67,7 @@ class Turtlebot3Explorer:
         self.curr_parent = None
 
         self.map = None
+        self.called = False
 
         #wurzel erstellen
         if self.curr_node is None:
@@ -186,17 +188,30 @@ class Turtlebot3Explorer:
         #rospy.logwarn(f"{'  ' * depth}Node at depth {depth}: x={node.x}, y={node.y}, visited={node.visited}")
         
         # Rufe die Funktion rekursiv für alle verbundenen Nodes auf
-        if node.left:
-            rospy.logwarn(f"{'  ' * depth}Left:")
-            self.log_all_nodes(node.left, depth + 1)
-        if node.right:
-            rospy.logwarn(f"{'  ' * depth}Right:")
-            self.log_all_nodes(node.right, depth + 1)
-        if node.front:
-            rospy.logwarn(f"{'  ' * depth}Front:")
-            self.log_all_nodes(node.front, depth + 1)
+        if node.node_1:
+            rospy.logwarn(f"{'  ' * depth}node_1: {node.node_1.x}, {node.node_1.y}")
+            self.log_all_nodes(node.node_1, depth + 1)
+        if node.node_2:
+            rospy.logwarn(f"{'  ' * depth}node_2: {node.node_2.x}, {node.node_2.y}")
+            self.log_all_nodes(node.node_2, depth + 1)
+        if node.node_3:
+            rospy.logwarn(f"{'  ' * depth}node_3: {node.node_3.x}, {node.node_3.y}")
+            self.log_all_nodes(node.node_3, depth + 1)
 
-    
+    def just_once_called(self):
+        self.called = True
+        rospy.logwarn(f"Im here")
+        cmd_vel = Twist()
+        start_time= rospy.Time.now()
+        while (rospy.Time.now() - start_time).to_sec() < 3.0:
+            cmd_vel.angular.z=0.1
+            self.cmd_vel_pub.publish(cmd_vel)
+        start_time = rospy.Time.now()
+        while (rospy.Time.now() - start_time).to_sec() < 3.0:
+            cmd_vel.angular.z=-0.1
+            self.cmd_vel_pub.publish(cmd_vel)
+        cmd_vel.angular.z=0
+        self.cmd_vel_pub.publish(cmd_vel)
     
     def move(self):
         cmd_vel = Twist()
@@ -204,33 +219,36 @@ class Turtlebot3Explorer:
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
 
+        if not self.called:
+            self.just_once_called()
 
-        cmd_vel.linear.x=0.01
-        self.cmd_vel_pub.publish(cmd_vel)
         rospy.logwarn(f"curr_x: {self.current_x_real}, curr_y: {self.current_y_real}")
 
         #rospy.loginfo(f"node_x: {self.curr_node.x}, node_y: {self.curr_node.y}")
-        '''
+        
         self.log_all_nodes(self.curr_parent)
-        if  10 > left_dist > 0.4 or 10 > right_dist > 0.4:
+        if  10 > self.distances_min.get('left', float('inf')) > 0.65 or 10 > self.distances_min.get('right', float('inf')) > 0.65:
             
-            if self.curr_node.parent is None or not (self.current_x_real - 0.5 < self.curr_node.parent.x < self.current_x_real + 0.5 and self.current_y_real - 0.5 < self.curr_node.parent.y < self.current_y_real + 0.5) :
+            if self.curr_node.parent is None or (not (self.current_x_real - 0.5 < self.curr_node.parent.x < self.current_x_real + 0.5) or
+                                                    not (self.current_y_real - 0.5 < self.curr_node.parent.y < self.current_y_real + 0.5)
+                                                ):
                 if self.curr_node.x == 0 and self.curr_node.y == 0:
                     self.curr_node.x = self.current_x_real
                     self.curr_node.y = self.current_y_real
+                    self.curr_node.number_of_roads = self.number_of_roads()
                     #rospy.logwarn(f"new_x: {self.curr_node.x}, new_y: {self.curr_node.x}")
                 
                 #rospy.loginfo(f"parent_x: {self.curr_node.parent.x}, y: {self.curr_node.parent.y}")
                 direction= self.get_the_new_orientation() #after this line the current node is changed to the child if the child is not already existing
                 if cmd_vel.angular.z == 0:
                     if direction == -1:
-                        self.get_new_goal(direction, right_dist)
+                        #self.get_new_goal(direction, right_dist)
                         rospy.loginfo(f"distance right: {right_dist}")
                     elif direction == 1:
-                        self.get_new_goal(direction, left_dist)
+                        #self.get_new_goal(direction, left_dist)
                         rospy.loginfo(f"distance left: {left_dist}")
                     elif direction == 0:
-                        self.get_new_goal(direction, front_dist)
+                        #self.get_new_goal(direction, front_dist)
                         rospy.loginfo(f"distance front: {front_dist}")
         else:
             if self.laser_scan_msg != 0:
@@ -238,45 +256,57 @@ class Turtlebot3Explorer:
                     self.return_to_the_last_crossroads()
 
                     self.curr_node = self.curr_node.parent #after returning to the parent set the current node to the parent
+
+                    '''
+                    rospy.loginfo(f"rotating against the parent")
                     while abs(self.get_angle_to_goal(self.curr_node.x, self.curr_node.y)) > math.pi:
                         cmd_vel.angular.z = 0.3 if self.get_angle_to_goal(self.curr_node.x, self.curr_node.y) > 0 else -0.3
                         self.cmd_vel_pub.publish(cmd_vel)
-        self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
-        '''
+                    rospy.loginfo(f"rotating finished")
+                    '''
+        #self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
+        
 
+    def number_of_roads(self): #ToDo : integrate it with check closed way
+        front_dist = self.distances.get('front', float('inf'))
+        left_dist = self.distances.get('left', float('inf'))
+        right_dist = self.distances.get('right', float('inf'))
+
+        number_of_roads =0
+        if front_dist > 0.65:
+            number_of_roads += 1
+        if left_dist > 0.65:
+            number_of_roads +=1
+        if right_dist > 0.65:
+            number_of_roads +=1
+        return number_of_roads
 
           
-    def check_if_node_saved(self,direction):
-        if direction == 1:
-            if self.curr_node.left is not None:
-                return True
-            else: #if not initialized then this direction is not visited
-                self.curr_node.left = Node() #initialize the node 
-                self.curr_node.left.visited = True #set it to visited
-                self.curr_node.left.parent = self.curr_node #add the node itseld as parent to move to the child
-                self.curr_node = self.curr_node.left #set the current not to the left direction, to add the x and y when you arrive it
-                rospy.logwarn(f"moved to the left")
-                return False
-        if direction == -1:
-            if self.curr_node.right is not None:
-                return True
-            else: 
-                self.curr_node.right = Node() 
-                self.curr_node.right.visited = True
-                self.curr_node.right.parent = self.curr_node
-                self.curr_node = self.curr_node.right
-                rospy.logwarn(f"moved to the right")
-                return False
-        if direction == 0:
-            if self.curr_node.front is not None:
-                return True
-            else: 
-                self.curr_node.front = Node()
-                self.curr_node.front.visited = True
-                self.curr_node.front.parent = self.curr_node
-                self.curr_node = self.curr_node.front
-                rospy.logwarn(f"moved to the front")
-                return False
+    def check_if_node_saved(self):
+        if self.curr_node.node_1 is None:
+            self.curr_node.node_1 = Node() #initialize the node 
+            self.curr_node.node_1.visited = True #set it to visited
+            self.curr_node.node_1.parent = self.curr_node #add the node itself as parent to move to the child
+            self.curr_node = self.curr_node.node_1 #set the current nod to the first son, to add the x and y when you arrive it
+            rospy.logwarn(f"moved to the first")
+            return False
+        elif self.curr_node.node_2 is None:
+            self.curr_node.node_2 = Node() 
+            self.curr_node.node_2.visited = True
+            self.curr_node.node_2.parent = self.curr_node
+            self.curr_node = self.curr_node.node_2
+            rospy.logwarn(f"moved to the second")
+            return False
+        elif self.curr_node.node_3 is None:
+            self.curr_node.node_3 = Node()
+            self.curr_node.node_3.visited = True
+            self.curr_node.node_3.parent = self.curr_node
+            self.curr_node = self.curr_node.node_3
+            rospy.logwarn(f"moved to the third")
+            return False
+        else:
+            return True
+            
 
 
     '''
@@ -305,35 +335,19 @@ class Turtlebot3Explorer:
         #rospy.loginfo(f"front: {front_dist}")
 
         # Check if paths are clear
-        left_clear = left_dist > 0.4
-        right_clear = right_dist > 0.4
-        front_dist = front_dist > 0.4
+        left_clear = left_dist > 0.65
+        right_clear = right_dist > 0.65
+        front_dist = front_dist > 0.65
         
-        number_of_roads = 0
+        if self.check_if_node_saved():
+            return -2
+        
         if right_clear:
-            number_of_roads += 1
-            right_saved = self.check_if_node_saved(-1)
             return -1
         elif front_dist:
-            number_of_roads += 1
-            left_saved = self.check_if_node_saved(0)
             return 0
         elif left_clear:
-            number_of_roads += 1
-            front_saved = self.check_if_node_saved(1)
             return 1
-
-        number_of_visited_roads = 0
-        if front_saved:
-            number_of_visited_roads += 1
-        if left_saved:
-            number_of_visited_roads += 1
-        if right_saved:
-            number_of_visited_roads += 1
-
-        if number_of_roads == number_of_visited_roads: #all roads are visited -> return to the parent
-            self.return_to_the_last_crossroads()
-            return -2 # just random number to not get the direction
 
 
     def get_new_goal(self,direction, distance):
@@ -388,12 +402,14 @@ class Turtlebot3Explorer:
         rospy.loginfo(f"in the return to the parent: {goal_x},   {goal_y}")
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
         cmd_vel = Twist()
-        while distance_to_goal>0.1:
+        while distance_to_goal > 0.1:
             self.move_to_goal(goal_x, goal_y)
+            distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
 
         cmd_vel.linear.x = 0.0
         cmd_vel.angular.z = 0.0
         self.cmd_vel_pub.publish(cmd_vel)
+        rospy.loginfo(f"returned")
 
 
     '''
@@ -469,7 +485,7 @@ class Turtlebot3Explorer:
 
         # Calculate distance and angle to goal
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
-        rospy.loginfo(f"x: {goal_x} , y: {goal_y}")
+        #rospy.loginfo(f"x: {goal_x} , y: {goal_y}")
         angle_diff = self.get_angle_to_goal(goal_x, goal_y)
         #rospy.loginfo(f"angle {distance_to_goal}")
         cmd_vel = Twist()
@@ -538,7 +554,6 @@ class Turtlebot3Explorer:
                 self.stop_robot()
                 break
             self.move()
-            rospy.sleep(0.1)  # Pause for smooth data processing
             rate.sleep()
 
     def stop_robot(self):
