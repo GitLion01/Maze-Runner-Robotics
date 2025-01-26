@@ -61,6 +61,7 @@ class Turtlebot3Explorer:
         self.laser_scan_msg = 0
         self.temp_goal_x = 0
         self.temp_goal_y = 0
+        #self.last_direction = 0
 
         self.curr_node = None
         self.curr_dir = 0
@@ -78,6 +79,7 @@ class Turtlebot3Explorer:
             self.curr_node = node
             #self.curr_node.parent = node #the root is the parent of itself
             self.curr_parent = node
+            self.curr_node.number_of_roads = 2 #need to make this dinamic
 
         self.scan_angles = {
             'front': (-20, 20),  # degrees
@@ -203,11 +205,11 @@ class Turtlebot3Explorer:
         rospy.logwarn(f"Im here")
         cmd_vel = Twist()
         start_time= rospy.Time.now()
-        while (rospy.Time.now() - start_time).to_sec() < 3.0:
+        while (rospy.Time.now() - start_time).to_sec() < 2.5:
             cmd_vel.angular.z=0.1
             self.cmd_vel_pub.publish(cmd_vel)
         start_time = rospy.Time.now()
-        while (rospy.Time.now() - start_time).to_sec() < 3.0:
+        while (rospy.Time.now() - start_time).to_sec() < 2.5:
             cmd_vel.angular.z=-0.1
             self.cmd_vel_pub.publish(cmd_vel)
         cmd_vel.angular.z=0
@@ -219,19 +221,24 @@ class Turtlebot3Explorer:
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
 
+        min_front = self.distances_min.get('front', float('inf'))
+        min_left = self.distances_min.get('left', float('inf'))
+        min_right = self.distances_min.get('right', float('inf'))
+
         if not self.called:
             self.just_once_called()
 
-        rospy.logwarn(f"curr_x: {self.current_x_real}, curr_y: {self.current_y_real}")
+        #rospy.logwarn(f"curr_x: {self.current_x_real}, curr_y: {self.current_y_real}")
 
         #rospy.loginfo(f"node_x: {self.curr_node.x}, node_y: {self.curr_node.y}")
         
         self.log_all_nodes(self.curr_parent)
-        if  10 > self.distances_min.get('left', float('inf')) > 0.65 or 10 > self.distances_min.get('right', float('inf')) > 0.65:
-            
+        if  10 > left_dist > 0.65 or 10 > right_dist > 0.65:
+
             if self.curr_node.parent is None or (not (self.current_x_real - 0.5 < self.curr_node.parent.x < self.current_x_real + 0.5) or
                                                     not (self.current_y_real - 0.5 < self.curr_node.parent.y < self.current_y_real + 0.5)
                                                 ):
+                rospy.loginfo(f"x: {self.curr_node.x}, y: {self.curr_node.y}")
                 if self.curr_node.x == 0 and self.curr_node.y == 0:
                     self.curr_node.x = self.current_x_real
                     self.curr_node.y = self.current_y_real
@@ -240,23 +247,52 @@ class Turtlebot3Explorer:
                 
                 #rospy.loginfo(f"parent_x: {self.curr_node.parent.x}, y: {self.curr_node.parent.y}")
                 direction= self.get_the_new_orientation() #after this line the current node is changed to the child if the child is not already existing
-                if cmd_vel.angular.z == 0:
-                    if direction == -1:
-                        #self.get_new_goal(direction, right_dist)
-                        rospy.loginfo(f"distance right: {right_dist}")
-                    elif direction == 1:
-                        #self.get_new_goal(direction, left_dist)
-                        rospy.loginfo(f"distance left: {left_dist}")
-                    elif direction == 0:
-                        #self.get_new_goal(direction, front_dist)
-                        rospy.loginfo(f"distance front: {front_dist}")
+                rospy.loginfo(f"direction {direction}")
+
+                if direction != 0:
+                    self.rotate(direction)
+                
+                elif direction == 0:  # Move forward
+                    #Todo : should correct the rotation to stay (on the same line with the parent)
+                    cmd_vel.linear.x = 0.2  # Move forward at 0.2 m/s
+                    self.cmd_vel_pub.publish(cmd_vel)
+                    rospy.sleep(1)  # Move for 1 second
+                    
+                    cmd_vel.linear.x = 0
+                    self.cmd_vel_pub.publish(cmd_vel)
+                
+                else: # == -2
+                    # No movement if no suitable direction found
+                    self.return_to_the_last_crossroads()
+
+            if hasattr(self, 'last_direction') and min_front > 0.2:
+                cmd_vel.linear.x = 0.2  # Move forward at 0.2 m/s
+                self.cmd_vel_pub.publish(cmd_vel)
+                rospy.sleep(1)  # Move for 1 second
+                
+                cmd_vel.linear.x = 0
+                self.cmd_vel_pub.publish(cmd_vel)
+            else : 
+                #rotate
+                pass
+                    
         else:
             if self.laser_scan_msg != 0:
                 if self.check_closed_way():
                     self.return_to_the_last_crossroads()
 
                     self.curr_node = self.curr_node.parent #after returning to the parent set the current node to the parent
-
+                else:
+                    rospy.loginfo("in the else")
+                    # Only move forward if front path is clear and we have a valid direction
+                    if hasattr(self, 'last_direction') and min_front > 0.2:
+                        rospy.loginfo("in the 2")
+                        cmd_vel.linear.x = 0.2  # Move forward at 0.2 m/s
+                        self.cmd_vel_pub.publish(cmd_vel)
+                        rospy.sleep(1)  # Move for 1 second
+                        
+                        cmd_vel.linear.x = 0
+                        self.cmd_vel_pub.publish(cmd_vel)
                     '''
                     rospy.loginfo(f"rotating against the parent")
                     while abs(self.get_angle_to_goal(self.curr_node.x, self.curr_node.y)) > math.pi:
@@ -265,7 +301,50 @@ class Turtlebot3Explorer:
                     rospy.loginfo(f"rotating finished")
                     '''
         #self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
-        
+        #self.correct_the_position(min_left,min_right)
+
+    def rotate(self, direction):
+        cmd_vel = Twist()
+        if 0.75 < abs(self.current_yaw) < 2.25: #he is looking right or left
+            rotate_x = self.current_x_real + (direction * 0.5)
+            rotate_y = self.current_y_real
+            angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
+
+            while abs(angle_diff) > 0.05:
+                cmd_vel.linear.x = 0.0
+                if abs(angle_diff) > 0.4:
+                    cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
+                elif abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
+                elif abs(angle_diff) > 0.1:
+                    cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
+                elif abs(angle_diff) > 0.05:
+                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+                self.cmd_vel_pub.publish(cmd_vel)
+                angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
+        else:
+            rotate_x = self.current_x_real
+            rotate_y = self.current_y_real + (direction * 0.5)
+            rospy.loginfo(f"rotate_y : {rotate_y}, rotate_x : {rotate_x}")
+            angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
+
+            while abs(angle_diff) > 0.05:
+                cmd_vel.linear.x = 0.0
+                if abs(angle_diff) > 0.4:
+                    cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
+                elif abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
+                elif abs(angle_diff) > 0.1:
+                    cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
+                elif abs(angle_diff) > 0.05:
+                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+                self.cmd_vel_pub.publish(cmd_vel)
+                angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
+            
+        # Stop rotation
+        cmd_vel.angular.z = 0
+        rospy.loginfo("rotation stopped")
+        self.cmd_vel_pub.publish(cmd_vel)
 
     def number_of_roads(self): #ToDo : integrate it with check closed way
         front_dist = self.distances.get('front', float('inf'))
@@ -283,21 +362,21 @@ class Turtlebot3Explorer:
 
           
     def check_if_node_saved(self):
-        if self.curr_node.node_1 is None:
+        if self.curr_node.node_1 is None and 0 < self.curr_node.number_of_roads <= 2:
             self.curr_node.node_1 = Node() #initialize the node 
             self.curr_node.node_1.visited = True #set it to visited
             self.curr_node.node_1.parent = self.curr_node #add the node itself as parent to move to the child
             self.curr_node = self.curr_node.node_1 #set the current nod to the first son, to add the x and y when you arrive it
             rospy.logwarn(f"moved to the first")
             return False
-        elif self.curr_node.node_2 is None:
+        elif self.curr_node.node_2 is None and self.curr_node.number_of_roads <= 3:
             self.curr_node.node_2 = Node() 
             self.curr_node.node_2.visited = True
             self.curr_node.node_2.parent = self.curr_node
             self.curr_node = self.curr_node.node_2
             rospy.logwarn(f"moved to the second")
             return False
-        elif self.curr_node.node_3 is None:
+        elif self.curr_node.node_3 is None and self.curr_node.number_of_roads == 3:
             self.curr_node.node_3 = Node()
             self.curr_node.node_3.visited = True
             self.curr_node.node_3.parent = self.curr_node
@@ -343,10 +422,13 @@ class Turtlebot3Explorer:
             return -2
         
         if right_clear:
+            self.last_direction = -1 
             return -1
         elif front_dist:
+            self.last_direction = 0 
             return 0
         elif left_clear:
+            self.last_direction = 1 
             return 1
 
 
