@@ -1,17 +1,25 @@
 <launch>
     <!-- Pfade zu YAML- und PGM-Dateien als Parameter -->
-    <arg name="yaml_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze8.yaml"/>
-    <arg name="pgm_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze8.pgm"/>
+    <arg name="yaml_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze9.yaml"/>
+    <arg name="pgm_file" default="/home/danny/catkin_ws/src/maze_bot_control/maps/maze9.pgm"/>
+    
     
     <arg name="start_x" default="0.03374290466308594"/>
     <arg name="start_y" default="-0.0013123006792739"/>
     
-    <arg name="goal_x" default="3.6837387084960938"/>
-    <arg name="goal_y" default="-3.395461082458496"/>
+ 
+    <!--<arg name="goal_x" default="3.6837387084960938"/>
+    <arg name="goal_y" default="-3.395461082458496"/>-->
+    
+    <arg name="goal_x" default="1.62770414352417"/>
+    <arg name="goal_y" default="-3.690054416656494"/>
+   <!--
+    <arg name="goal_x" default="2.4167144298553467"/>
+    <arg name="goal_y" default="-5.35239315032959"/>-->
     
     <!-- Include der zusätzlichen Launch-Datei -->
     <include file="$(find maze_pkg)/launch/maze.launch">
-        <arg name="maze_id" value="8"/>
+        <arg name="maze_id" value="9"/>
     </include>
 
     <!-- Map-Loader-Node x -->

@@ -102,18 +102,16 @@ class PathFollower:
         cmd_vel = Twist()
         
         goal_x_pixel, goal_y_pixel = self.path[self.current_goal_index]
-        self.check_line(goal_x_pixel,goal_y_pixel) #get the last point in the line (not point by point)
-        self.goal_x , self.goal_y = self.path[self.current_goal_index] # because the index can be updated in the check_line Method
+        #self.check_line(goal_x_pixel,goal_y_pixel) #get the last point in the line (not point by point)
+        #self.goal_x , self.goal_y = self.path_meter[self.current_goal_index] # because the index can be updated in the check_line Method
 
-        rospy.loginfo(f"angle_diff {abs(angle_diff)}, curr_index : {self.current_goal_index}")
-        if abs(angle_diff) > 0.1:
+        rospy.loginfo(f"curr_index : {self.current_goal_index}")
+        if abs(angle_diff) > 0.2:
             cmd_vel.linear.x = 0.0
             if abs(angle_diff) > 0.4:
                 cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
             elif abs(angle_diff) > 0.2:
                 cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
-            elif abs(angle_diff) > 0.1:
-                cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
         else:
             cmd_vel.angular.z = 0.0
             if distance_to_goal > 1:
@@ -122,11 +120,11 @@ class PathFollower:
                 cmd_vel.linear.x = 0.4
             elif distance_to_goal > 0.3:
                 cmd_vel.linear.x = 0.2
-            elif distance_to_goal > 0.1:
+            elif distance_to_goal > 0.15:
                 cmd_vel.linear.x = 0.15
         
         # Check if we've reached the current waypoint
-        if distance_to_goal < 0.1:
+        if distance_to_goal < 0.15:
             self.current_goal_index += 1
             if self.current_goal_index >= len(self.path):
                 rospy.loginfo("Reached final goal!")
@@ -147,10 +145,10 @@ class PathFollower:
                     next_goal_x,_ = self.path[self.current_goal_index + counter]
                     if next_goal_x != goal_x:
                         #rospy.loginfo(f"goal_x: {goal_x}, goal_y: {goal_y}, index : {self.current_goal_index} from x")
-                        self.current_goal_index = max(self.current_goal_index + counter -3,self.current_goal_index)
+                        self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
                         return
                 else:
-                    self.current_goal_index = max(self.current_goal_index + counter -3,self.current_goal_index)
+                    self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
                     return
                     
             counter = 1
@@ -161,11 +159,11 @@ class PathFollower:
                     #rospy.loginfo(f"in2222222222")
                     _,next_goal_y = self.path[self.current_goal_index + counter]
                     if next_goal_y != goal_y:
-                        self.current_goal_index = max(self.current_goal_index + counter -3,self.current_goal_index)
+                        self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
                         #rospy.loginfo(f"next_goal_y: {next_goal_y}, goal_y: {goal_y}, index : {self.current_goal_index} from y")
                         return
                 else:
-                    self.current_goal_index = max(self.current_goal_index + counter -3,self.current_goal_index)
+                    self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
                     return
         return
     

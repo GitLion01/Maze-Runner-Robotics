@@ -34,8 +34,8 @@ class RobotTracker:
         self.start_y = -0.0013123006792739
         self.start_z = 0
         
-        self.goal_x = 3.6837387084960938
-        self.goal_y = -3.395461082458496
+        self.goal_x = 1.62770414352417
+        self.goal_y = -3.690054416656494
         self.goal_z = 0.0
 
         self.goal_position = None  # Placeholder for goal position in pixel coordinates
@@ -162,7 +162,7 @@ class RobotTracker:
         for y in range(height):
             for x in range(width):
                 if self.map_2d[y][x] == 100:  # If it's a wall
-                    #self.check_if_corner(y,x) # convert the point after the corner to 100
+                    self.check_if_corner(y,x) # convert the point after the corner to 100
                     for dy in range(-wall_extension, wall_extension + 1):
                         for dx in range(-wall_extension, wall_extension + 1):
                             nx, ny = x + dx, y + dy
@@ -178,7 +178,34 @@ class RobotTracker:
                     return True
         return False
     
-    
+    def check_if_corner(self,y,x):
+        if not self.check_if_start_or_end_100(y,x):
+            #check if this is a corner
+            if self.map_2d[y][x-1] == 100 and self.map_2d[y-1][x] == 100 : #  __
+                self.map_2d_modified[y+1][x+1] = 100                       	     #  |
+                self.map_2d_modified[y+2][x+2] = 100
+
+                self.map_2d_modified[y][x+1] = 100
+                self.map_2d_modified[y+1][x] = 100
+            elif self.map_2d[y][x+1] == 100 and self.map_2d[y-1][x] == 100 :        #  __
+                self.map_2d_modified[y+1][x-1] = 100                                	      # |
+                self.map_2d_modified[y+2][x-2] = 100
+
+                self.map_2d_modified[y][x-1] = 100
+                self.map_2d_modified[y+1][x] = 100
+            elif self.map_2d[y][x+1] == 100 and self.map_2d[y+1][x] == 100 :  # |
+                self.map_2d_modified[y-1][x-1] = 100                         	      # ---
+                self.map_2d_modified[y-2][x-2] = 100
+
+                self.map_2d_modified[y-1][x] = 100
+                self.map_2d_modified[y][x-1] = 100
+            elif self.map_2d[y][x-1] == 100 and self.map_2d[y+1][x] == 100 :        # |
+                self.map_2d_modified[y-1][x+1] = 100                             		     #  ---
+                self.map_2d_modified[y-2][x+2] = 100
+
+                self.map_2d_modified[y][x+1] = 100
+                self.map_2d_modified[y-1][x] = 100
+
     def publish_walls_after_edition(self):
         '''
         sensor_msgs/PointCloud is needed,and not geometry_msgs/Point.
