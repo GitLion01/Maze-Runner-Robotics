@@ -83,11 +83,11 @@ class Turtlebot3Explorer:
             self.curr_node.number_of_roads = 2 #need to make this dinamic
 
         self.scan_angles = {
-            'front': (-20, 20),  # degrees
+            'front': (-5, 5),  # degrees
             'front_left': (20, 40),
             'front_right': (320, 340),
-            'left': (60, 100),
-            'right': (260, 300)
+            'left': (85, 95),
+            'right': (265, 275)
         }
         self.distances = {}  # Store distances to walls in different directions
         self.distances_min = {}
@@ -129,7 +129,25 @@ class Turtlebot3Explorer:
             rospy.logwarn("Leere oder ungültige SLAM-Daten empfangen. map_callback wird nicht ausgeführt.")
             return
 
-        
+    def laser_scan_callback(self, msg):
+        """Process LiDAR scan data to detect walls and obstacles."""
+        # Convert angles from degrees to array indices
+        self.laser_scan_msg = msg
+        angle_increment = msg.angle_increment
+        num_readings = len(msg.ranges)
+
+        # Calculate indices for specific angles
+        front_idx = int((0 - msg.angle_min) / angle_increment)
+        left_idx = int((math.radians(90) - msg.angle_min) / angle_increment)
+        right_idx = int((math.radians(-90) - msg.angle_min) / angle_increment)
+
+        # Get readings
+        self.distances = {
+            'front': msg.ranges[front_idx] if msg.range_min <= msg.ranges[front_idx] <= msg.range_max else msg.range_max,
+            'left': msg.ranges[left_idx] if msg.range_min <= msg.ranges[left_idx] <= msg.range_max else msg.range_max,
+            'right': msg.ranges[right_idx] if msg.range_min <= msg.ranges[right_idx] <= msg.range_max else msg.range_max
+        }
+    '''   
     def laser_scan_callback(self, msg):
         """Process LiDAR scan data to detect walls and obstacles."""
         # Convert angles from degrees to array indices
@@ -172,7 +190,7 @@ class Turtlebot3Explorer:
 
         #if self.check_closed_way(msg):
             #self.return_to_the_last_crossroads()
-
+    '''
 
     def get_distance_to_temp_goal(self, goal_x, goal_y):
         """Calculate Euclidean distance to the goal."""
@@ -222,9 +240,13 @@ class Turtlebot3Explorer:
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
 
+        '''
         min_front = self.distances_min.get('front', float('inf'))
         min_left = self.distances_min.get('left', float('inf'))
         min_right = self.distances_min.get('right', float('inf'))
+        min_front_left = self.distances_min.get('front_left', float('inf'))
+        min_front_right = self.distances_min.get('front_right', float('inf'))
+        '''
 
         if not self.called:
             self.just_once_called()
@@ -234,7 +256,8 @@ class Turtlebot3Explorer:
         #rospy.loginfo(f"node_x: {self.curr_node.x}, node_y: {self.curr_node.y}")
         
         self.log_all_nodes(self.curr_parent)
-        if  10 > left_dist > 0.65 or 10 > right_dist > 0.65:
+        rospy.loginfo(f"current Node : {self.curr_node.x}, {self.curr_node.y}")
+        if  1000 > left_dist > 0.65 or 1000 > right_dist > 0.65: #because at the beginnig i receive inf from the laser
 
             if self.curr_node.parent is None or (not (self.current_x_real - 0.5 < self.curr_node.parent.x < self.current_x_real + 0.5) or
                                                     not (self.current_y_real - 0.5 < self.curr_node.parent.y < self.current_y_real + 0.5)
@@ -244,38 +267,80 @@ class Turtlebot3Explorer:
                     self.curr_node.x = self.current_x_real
                     self.curr_node.y = self.current_y_real
                     self.curr_node.number_of_roads = self.number_of_roads()
-                    #rospy.logwarn(f"new_x: {self.curr_node.x}, new_y: {self.curr_node.x}")
+                    #rospy.logwarn(f"new_x: {self.curr_node.x}, new_y: {self.curr_node.x}, roads {self.curr_node.number_of_roads}")
                 
                 #rospy.loginfo(f"parent_x: {self.curr_node.parent.x}, y: {self.curr_node.parent.y}")
                 direction= self.get_the_new_orientation() #after this line the current node is changed to the child if the child is not already existing
                 rospy.loginfo(f"direction {direction}")
 
-                if direction != 0:
+                if direction == 1 or direction == -1:
+                    cmd_vel.linear.x = 0.0
+                    self.cmd_vel_pub.publish(cmd_vel)
                     self.rotate(direction)
                 
                 elif direction == 0:
-                    cmd_vel.linear.x = 0.2
+                    if front_dist < 0.3:
+                        cmd_vel.linear.x = 0.1
+                    else:
+                        cmd_vel.linear.x = 0.2
                     self.cmd_vel_pub.publish(cmd_vel)
                     rospy.sleep(1)  # Move for 1 second
                 
                 else: # == -2
                     # No movement if no suitable direction found
                     self.return_to_the_last_crossroads()
+                    self.curr_node = self.curr_node.parent
 
-            if hasattr(self, 'last_direction') and min_front > 0.2:
-                self.rotate_and_move_against_the_parent()
-                cmd_vel.linear.x = 0.2
-                cmd_vel.angular.z = 0
+            if hasattr(self, 'last_direction') and front_dist > 0.2:
+                #self.rotate_and_move_against_the_parent()
+                if left_dist < 0.45: #laufe neben der linken Wand
+                    if left_dist < 0.25:
+                        cmd_vel.angular.z = -0.1
+                    elif left_dist > 0.3:
+                        cmd_vel.angular.z = 0.1
+                    else:
+                        cmd_vel.angular.z = 0
+                else: #laufe neben der rechten Wand
+                    if right_dist < 0.25:
+                        cmd_vel.angular.z = 0.1
+                    elif right_dist > 0.3:
+                        cmd_vel.angular.z = -0.1
+                    else:
+                        cmd_vel.angular.z = 0
+                
+                if front_dist < 0.3:
+                    cmd_vel.linear.x = 0.1
+                else:
+                    cmd_vel.linear.x = 0.2
                 self.cmd_vel_pub.publish(cmd_vel)
+                rospy.sleep(1)
                 #rospy.sleep(1)  # Move for 1 second
                     
         else:
             # Only move forward if front path is clear and we have a valid direction
-            if hasattr(self, 'last_direction') and min_front > 0.2:
-                self.rotate_and_move_against_the_parent()
-                cmd_vel.linear.x = 0.2
-                cmd_vel.angular.z = 0
+            if hasattr(self, 'last_direction') and front_dist > 0.2:
+                #self.rotate_and_move_against_the_parent()
+                if left_dist < 0.45: #laufe neben der linken Wand
+                    if left_dist < 0.25:
+                        cmd_vel.angular.z = -0.1
+                    elif left_dist > 0.3:
+                        cmd_vel.angular.z = 0.1
+                    else:
+                        cmd_vel.angular.z = 0
+                else: #laufe neben der rechten Wand
+                    if right_dist < 0.25:
+                        cmd_vel.angular.z = 0.1
+                    elif right_dist > 0.3:
+                        cmd_vel.angular.z = -0.1
+                    else:
+                        cmd_vel.angular.z = 0
+                
+                if front_dist < 0.3:
+                    cmd_vel.linear.x = 0.1
+                else:
+                    cmd_vel.linear.x = 0.2
                 self.cmd_vel_pub.publish(cmd_vel)
+                rospy.sleep(1)
                 #rospy.sleep(1)  # Move for 1 second
                 '''
                 rospy.loginfo(f"rotating against the parent")
@@ -288,8 +353,6 @@ class Turtlebot3Explorer:
                 if self.check_closed_way():
                     self.return_to_the_last_crossroads()
                     self.curr_node = self.curr_node.parent #after returning to the parent set the current node to the parent
-        #self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
-        #self.correct_the_position(min_left,min_right)
 
     def rotate_and_move_against_the_parent(self):
         if self.to_direction_up_down is None:
@@ -303,30 +366,35 @@ class Turtlebot3Explorer:
             x = self.curr_node.parent.x
             y = self.current_y_real + 0.2 if self.current_y_real > 0 else self.current_y_real - 0.2
         angle_diff = self.get_angle_to_goal(x,y)
-        while abs(angle_diff) > 0.05:
-            cmd_vel.linear.x = 0.0
-            if abs(angle_diff) > 0.4:
-                cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
-            elif abs(angle_diff) > 0.2:
-                cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
-            elif abs(angle_diff) > 0.1:
-                cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
-            elif abs(angle_diff) > 0.05:
-                cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-            self.cmd_vel_pub.publish(cmd_vel)
-            angle_diff = self.get_angle_to_goal(x,y)
+        
+        if abs(angle_diff) > 0.4:
+            cmd_vel.angular.z = 0.4 if angle_diff > 0 else -0.4
+        elif abs(angle_diff) > 0.2:
+            cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
+        elif abs(angle_diff) > 0.1:
+            cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+        elif abs(angle_diff) > 0.05:
+            cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+        else :
+            cmd_vel.angular.z = 0
+        self.cmd_vel_pub.publish(cmd_vel)
+        angle_diff = self.get_angle_to_goal(x,y)
 
 
     def rotate(self, direction):
         cmd_vel = Twist()
+        rospy.loginfo(f"yaw {self.current_yaw}")
         if 0.75 < abs(self.current_yaw) < 2.25: #he is looking right or left
             self.to_direction_up_down= True
-            rotate_x = self.current_x_real + (direction * 0.5)
+            if self.current_yaw < 0:
+                rotate_x = self.current_x_real - (direction * 0.5)
+            else:
+                rotate_x = self.current_x_real + (direction * 0.5)
             rotate_y = self.current_y_real
+            rospy.loginfo(f"rotate_y : {rotate_y}, rotate_x : {rotate_x}")
             angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
 
             while abs(angle_diff) > 0.05:
-                cmd_vel.linear.x = 0.0
                 if abs(angle_diff) > 0.4:
                     cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
                 elif abs(angle_diff) > 0.2:
@@ -340,12 +408,14 @@ class Turtlebot3Explorer:
         else:
             self.to_direction_up_down= False
             rotate_x = self.current_x_real
-            rotate_y = self.current_y_real + (direction * 0.5)
+            if self.current_yaw < -2.25 or self.current_yaw > 2.25:
+                rotate_y = self.current_y_real + (direction * 0.5)
+            else:
+                rotate_y = self.current_y_real - (direction * 0.5)
             rospy.loginfo(f"rotate_y : {rotate_y}, rotate_x : {rotate_x}")
             angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
 
             while abs(angle_diff) > 0.05:
-                cmd_vel.linear.x = 0.0
                 if abs(angle_diff) > 0.4:
                     cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
                 elif abs(angle_diff) > 0.2:
@@ -356,10 +426,11 @@ class Turtlebot3Explorer:
                     cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
                 self.cmd_vel_pub.publish(cmd_vel)
                 angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
-            
+
         # Stop rotation
         cmd_vel.angular.z = 0
         self.cmd_vel_pub.publish(cmd_vel)
+        rospy.sleep(1)
 
     def number_of_roads(self): #ToDo : integrate it with check closed way
         front_dist = self.distances.get('front', float('inf'))
@@ -377,14 +448,14 @@ class Turtlebot3Explorer:
 
           
     def check_if_node_saved(self):
-        if self.curr_node.node_1 is None and 0 < self.curr_node.number_of_roads <= 2:
+        if self.curr_node.node_1 is None:
             self.curr_node.node_1 = Node() #initialize the node 
             self.curr_node.node_1.visited = True #set it to visited
             self.curr_node.node_1.parent = self.curr_node #add the node itself as parent to move to the child
             self.curr_node = self.curr_node.node_1 #set the current nod to the first son, to add the x and y when you arrive it
             rospy.logwarn(f"moved to the first")
             return False
-        elif self.curr_node.node_2 is None and self.curr_node.number_of_roads <= 3:
+        elif self.curr_node.node_2 is None and self.curr_node.number_of_roads >= 2:
             self.curr_node.node_2 = Node() 
             self.curr_node.node_2.visited = True
             self.curr_node.node_2.parent = self.curr_node
@@ -429,9 +500,9 @@ class Turtlebot3Explorer:
         #rospy.loginfo(f"front: {front_dist}")
 
         # Check if paths are clear
-        left_clear = left_dist > 0.65
-        right_clear = right_dist > 0.65
-        front_dist = front_dist > 0.65
+        left_clear = left_dist > 0.66
+        right_clear = right_dist > 0.66
+        front_dist = front_dist > 0.66
         
         if self.check_if_node_saved():
             return -2
@@ -499,7 +570,7 @@ class Turtlebot3Explorer:
         rospy.loginfo(f"in the return to the parent: {goal_x},   {goal_y}")
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
         cmd_vel = Twist()
-        while distance_to_goal > 0.1:
+        while distance_to_goal > 0.2:
             self.move_to_goal(goal_x, goal_y)
             distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
 
@@ -513,7 +584,7 @@ class Turtlebot3Explorer:
     return true if the road closed, false if not
     it has to check it using the laser data (if there is no a x_distance between the points of the laser then it is closed)
     the x_distance is smaller a little bit than the spaces between the walls (it needs to be tested and adjasted rightly)
-    '''
+    
     def check_closed_way(self):
         """
         Check if the path is closed by analyzing gaps between sequential laser scan points.
@@ -577,6 +648,17 @@ class Turtlebot3Explorer:
         rospy.loginfo("All directions appear closed")
         return True
     
+    '''
+    def check_closed_way(self):
+        left_dist = self.distances.get('left', float('inf'))
+        right_dist = self.distances.get('right', float('inf'))
+        front_dist = self.distances.get('front', float('inf'))
+        rospy.loginfo(f"right: {right_dist}, left {left_dist}, front: {front_dist}")
+        if left_dist < 0.6 and right_dist < 0.6 and front_dist < 0.4:
+            return True
+        return False
+
+
 
     def move_to_goal(self,goal_x,goal_y):
 
@@ -603,45 +685,12 @@ class Turtlebot3Explorer:
                 cmd_vel.linear.x = 0.4
             elif distance_to_goal > 0.3:
                 cmd_vel.linear.x = 0.2
-            elif distance_to_goal > 0.1:
+            elif distance_to_goal > 0.2:
                 cmd_vel.linear.x = 0.15
         
         self.cmd_vel_pub.publish(cmd_vel)
         
     
-    '''
-    return: publish the corrected position
-    goal: try to keep the robot in the middle between the walls
-    you can use the left_dist and right_dist with a badding about 0.5 meters
-    so not every time we need to correct the position
-    '''
-    #Danny
-    def correct_the_position(self,left_dist,right_dist):
-        cmd_vel = Twist()
-        #rospy.loginfo(f"left: {left_dist}, right: {right_dist}")
-        CORRECTION_THRESHOLD = 0.1  # Minimum difference to trigger correction
-        
-        # Calculate the difference between left and right distances
-        difference = left_dist - right_dist
-        
-        if abs(difference) > CORRECTION_THRESHOLD:
-            # Calculate correction factor (between -1 and 1)
-            correction = max(min(difference / (left_dist + right_dist), 1.0), -1.0)
-            
-            # Apply proportional correction
-            cmd_vel.angular.z = -correction * 0.2  # Negative because right turn needs negative angular velocity
-            cmd_vel.linear.x = 0.1 * (1 - abs(correction))  # Slow down during correction
-            
-            rospy.loginfo(f"Correcting position: diff={difference:.2f}, correction={correction:.2f}")
-        else:
-            # No correction needed, move forward
-            cmd_vel.linear.x = 0.1
-            cmd_vel.angular.z = 0.0
-        
-        # Publish the command
-        self.cmd_vel_pub.publish(cmd_vel)
-            
-
     def control_loop(self):
         # Hauptkontrollschleife
         rate = rospy.Rate(10)
