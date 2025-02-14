@@ -139,58 +139,18 @@ class Turtlebot3Explorer:
         # Calculate indices for specific angles
         front_idx = int((0 - msg.angle_min) / angle_increment)
         left_idx = int((math.radians(90) - msg.angle_min) / angle_increment)
+        left_back_idx = int((math.radians(95) - msg.angle_min) / angle_increment)
         right_idx = int((math.radians(-90) - msg.angle_min) / angle_increment)
+        right_back_idx = int((math.radians(-95) - msg.angle_min) / angle_increment)
 
         # Get readings
         self.distances = {
             'front': msg.ranges[front_idx] if msg.range_min <= msg.ranges[front_idx] <= msg.range_max else msg.range_max,
             'left': msg.ranges[left_idx] if msg.range_min <= msg.ranges[left_idx] <= msg.range_max else msg.range_max,
-            'right': msg.ranges[right_idx] if msg.range_min <= msg.ranges[right_idx] <= msg.range_max else msg.range_max
+            'left_back': msg.ranges[left_back_idx] if msg.range_min <= msg.ranges[left_back_idx] <= msg.range_max else msg.range_max,
+            'right': msg.ranges[right_idx] if msg.range_min <= msg.ranges[right_idx] <= msg.range_max else msg.range_max,
+            'right_back': msg.ranges[right_back_idx] if msg.range_min <= msg.ranges[right_back_idx] <= msg.range_max else msg.range_max,
         }
-    '''   
-    def laser_scan_callback(self, msg):
-        """Process LiDAR scan data to detect walls and obstacles."""
-        # Convert angles from degrees to array indices
-        self.laser_scan_msg = msg
-        angle_increment = msg.angle_increment
-        num_readings = len(msg.ranges)
-
-        # Process each direction defined in scan_angles
-        for direction, (start_deg, end_deg) in self.scan_angles.items():
-            # Convert degrees to radians
-            start_rad = math.radians(start_deg)
-            end_rad = math.radians(end_deg)
-            
-            # Convert radians to array indices
-            start_idx = int((start_rad - msg.angle_min) / angle_increment)
-            end_idx = int((end_rad - msg.angle_min) / angle_increment)
-            
-            # Ensure indices are within bounds
-            start_idx = max(0, min(start_idx, num_readings - 1))
-            end_idx = max(0, min(end_idx, num_readings - 1))
-            
-            # Get relevant ranges for this direction
-            ranges = msg.ranges[start_idx:end_idx]
-            
-            # Filter out invalid readings
-            valid_ranges = [r for r in ranges if msg.range_min <= r <= msg.range_max]
-            #rospy.loginfo(f"Right Angles: Start index: {start_idx}, End index: {end_idx}, Ranges: {ranges}")
-
-            
-            if valid_ranges:
-                # Store the minimum distance for this direction
-                self.distances[direction] = max(valid_ranges)
-                self.distances_min[direction] = min(valid_ranges)
-            else:
-                # Log warning if no valid readings for this direction
-                rospy.logwarn(f"No valid readings for direction {direction}")
-                # Assume maximum range
-                self.distances[direction] = msg.range_max
-                self.distances_min[direction] = msg.range_max
-
-        #if self.check_closed_way(msg):
-            #self.return_to_the_last_crossroads()
-    '''
 
     def get_distance_to_temp_goal(self, goal_x, goal_y):
         """Calculate Euclidean distance to the goal."""
@@ -239,6 +199,8 @@ class Turtlebot3Explorer:
         front_dist = self.distances.get('front', float('inf'))
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
+        right_back = self.distances.get('right_back', float('inf'))
+        left_back = self.distances.get('left_back', float('inf'))
 
         '''
         min_front = self.distances_min.get('front', float('inf'))
@@ -257,7 +219,7 @@ class Turtlebot3Explorer:
         
         self.log_all_nodes(self.curr_parent)
         rospy.loginfo(f"current Node : {self.curr_node.x}, {self.curr_node.y}")
-        if  1000 > left_dist > 0.65 or 1000 > right_dist > 0.65: #because at the beginnig i receive inf from the laser
+        if  1000 > left_back > 0.65 or 1000 > right_back > 0.65: #because at the beginnig i receive inf from the laser
 
             if self.curr_node.parent is None or (not (self.current_x_real - 0.5 < self.curr_node.parent.x < self.current_x_real + 0.5) or
                                                     not (self.current_y_real - 0.5 < self.curr_node.parent.y < self.current_y_real + 0.5)
