@@ -275,6 +275,7 @@ class Turtlebot3Explorer:
 
         if self.laser_scan_msg != 0:
                 if self.check_closed_way():
+                    rospy.logwarn(f"closed way")
                     self.return_to_the_last_crossroads()
                     self.curr_node = self.curr_node.parent #after returning to the parent set the current node to the parent
 
@@ -326,7 +327,7 @@ class Turtlebot3Explorer:
             cmd_vel.linear.x = 0
         self.cmd_vel_pub.publish(cmd_vel)
 
-        rospy.loginfo(f"move: {self.move_beside_left}, left : {min_left_25_90}, right {min_right_25_90}, z: {cmd_vel.angular.z}")
+        #rospy.loginfo(f"move: {self.move_beside_left}, left : {min_left_25_90}, right {min_right_25_90}, z: {cmd_vel.angular.z}")
 
     def rotate(self, direction):
         cmd_vel = Twist()
@@ -448,7 +449,7 @@ class Turtlebot3Explorer:
         right_dist = self.distances.get('right', float('inf'))
         front_dist = self.distances.get('front', float('inf'))
 
-        rospy.loginfo(f"right: {right_dist}") #the max distance to the right
+        rospy.loginfo(f"right: {right_dist}")
         rospy.loginfo(f"left: {left_dist}")
         rospy.loginfo(f"front: {front_dist}")
 
@@ -537,67 +538,73 @@ class Turtlebot3Explorer:
     return true if the road closed, false if not
     it has to check it using the laser data (if there is no a x_distance between the points of the laser then it is closed)
     the x_distance is smaller a little bit than the spaces between the walls (it needs to be tested and adjasted rightly)
-    
+    '''
     def check_closed_way(self):
-        """
-        Check if the path is closed by analyzing gaps between sequential laser scan points.
-        Returns True if all directions (front, left, right) are closed with no sufficient gaps.
-        """
         if not self.laser_scan_msg:
             return False
 
-        MIN_PASSAGE_WIDTH = 0.29  # Minimum width needed for robot to pass through
-        MAX_RANGE_CHECK = 3.0     # Maximum distance to check for obstacles
+        MIN_PASSAGE_WIDTH = 0.58  # Minimum width needed for robot to pass through
+        MAX_RANGE_CHECK = 3.0    # Maximum distance to check for obstacles
         
-        # Define angle ranges for each direction (in degrees)
-        #set a shared angle between the directions like 35 left and 40 right to prevent not cosidering of the points at the edges
         ANGLE_RANGES = {
-            'front': [(320, 360), (0, 40)],    # front range
-            'left': [(35, 110)],               # left range
-            'right': [(250, 325)]              # right range
+            'front': [(320, 360), (0, 40)],
+            'left': [(35, 110)],
+            'right': [(250, 325)]
         }
-        
+
         angle_min = self.laser_scan_msg.angle_min
         angle_increment = self.laser_scan_msg.angle_increment
         ranges = self.laser_scan_msg.ranges
-        
+
         def analyze_direction(angle_range):
-            """Helper function to analyze distances in a specific angle range"""
             start_deg, end_deg = angle_range
+        
+            # Convert to radians, handling 360-degree format
+            start_rad = math.radians(start_deg % 360)
+            end_rad = math.radians(end_deg % 360)
             
-            # Convert degrees to indices
-            start_idx = int((math.radians(start_deg) - angle_min) / angle_increment)
-            end_idx = int((math.radians(end_deg) - angle_min) / angle_increment)
+            # Calculate indices based on the converted radians
+            start_idx = int((start_rad - angle_min) / angle_increment)
+            end_idx = int((end_rad - angle_min) / angle_increment)
             
+            # Handle wraparound for 360 degrees
+            if end_idx < start_idx:
+                end_idx += len(ranges)
+                
             # Ensure indices are within bounds
             start_idx = max(0, min(start_idx, len(ranges) - 1))
             end_idx = max(0, min(end_idx, len(ranges) - 1))
             
+            rospy.loginfo(f"Analyzing range {start_deg}° to {end_deg}°")
+            rospy.loginfo(f"Indices: {start_idx} to {end_idx}")
+            
             valid_readings = []
             for i in range(start_idx, end_idx):
-                range_val = ranges[i]
+                # Handle wraparound for indices
+                idx = i % len(ranges)
+                range_val = ranges[idx]
                 if self.laser_scan_msg.range_min <= range_val <= MAX_RANGE_CHECK:
                     valid_readings.append(range_val)
             
             if not valid_readings:
-                return True  # Consider it closed if no valid readings
+                rospy.loginfo(f"No valid readings in range {start_deg}°-{end_deg}°")
+                return True
                 
-            # Find the maximum gap between any two readings
             max_gap = 0
             for i in range(len(valid_readings) - 1):
                 gap = abs(valid_readings[i] - valid_readings[i + 1])
                 max_gap = max(max_gap, gap)
-                
-            #rospy.loginfo(f"Max gap in range {start_deg}-{end_deg}: {max_gap:.3f}m")
+            
+            rospy.loginfo(f"Max gap in range {start_deg}°-{end_deg}°: {max_gap:.3f}m")
             return max_gap < MIN_PASSAGE_WIDTH
-        
-        #Check each direction
-        for _, angle_ranges in ANGLE_RANGES.items():
+
+        # Check each direction
+        for direction, angle_ranges in ANGLE_RANGES.items():
             for angle_range in angle_ranges:
                 if not analyze_direction(angle_range):
-                    #rospy.loginfo(f"Passage found in {direction} direction")
+                    rospy.loginfo(f"Passage found in {direction} direction")
                     return False
-        
+                
         rospy.loginfo("All directions appear closed")
         return True
     
@@ -613,7 +620,7 @@ class Turtlebot3Explorer:
             self.cmd_vel_pub.publish(cmd_vel)
             return True
         return False
-
+    '''
 
 
     def move_to_goal(self,goal_x,goal_y):
