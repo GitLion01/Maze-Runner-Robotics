@@ -130,7 +130,7 @@ class Turtlebot3Explorer:
         angle_increment = msg.angle_increment
 
         # Calculate indices for specific angles
-        front_idx = int((0 - msg.angle_min) / angle_increment)
+        #front_idx = int((0 - msg.angle_min) / angle_increment)
         left_idx = int((math.radians(90) - msg.angle_min) / angle_increment)
         left_back_idx = int((math.radians(102) - msg.angle_min) / angle_increment)
         #left_front_idx = int((math.radians(85) - msg.angle_min) / angle_increment)
@@ -140,30 +140,39 @@ class Turtlebot3Explorer:
         #right_front_idx = int((math.radians(-85) - msg.angle_min) / angle_increment)
 
 
-        # Calculate indices for 60 and 90 degrees
+        # Calculate indices for 25 and 90 degrees
         left_25_idx = int((math.radians(25) - msg.angle_min) / angle_increment)
         left_90_idx = int((math.radians(90) - msg.angle_min) / angle_increment)
         
-        # Get minimum distance in the 60-90 degree range
+        # Get minimum distance in the 25-90 degree range
         left_25_90_range = msg.ranges[left_25_idx:left_90_idx + 1]
         # Filter out invalid readings
         valid_left_readings = [r for r in left_25_90_range if msg.range_min <= r <= msg.range_max]
         min_left_25_90 = min(valid_left_readings) if valid_left_readings else msg.range_max
 
-        # Calculate indices for 60 and 90 degrees
+        # Calculate indices for 25 and 90 degrees
         right_25_idx = int((math.radians(-25) - msg.angle_min) / angle_increment)
         right_90_idx = int((math.radians(-90) - msg.angle_min) / angle_increment)
         
-        # Get minimum distance in the 60-90 degree range
+        # Get minimum distance in the 25-90 degree range
         right_25_90_range = msg.ranges[right_90_idx:right_25_idx + 1]
         # Filter out invalid readings
         valid_right_readings = [r for r in right_25_90_range if msg.range_min <= r <= msg.range_max]
         min_right_25_90 = min(valid_right_readings) if valid_right_readings else msg.range_max
 
+        # Get indices for both segments
+        idx_350_to_360 = [i for i, _ in enumerate(msg.ranges) if math.radians(350) <= msg.angle_min + i * msg.angle_increment <= 2*math.pi]
+        idx_0_to_10 = [i for i, _ in enumerate(msg.ranges) if 0 <= msg.angle_min + i * msg.angle_increment <= math.radians(10)]
+        front_indices = idx_350_to_360 + idx_0_to_10
+    
+        front_range = [msg.ranges[i] for i in front_indices]
+        valid_front_readings = [r for r in front_range if msg.range_min <= r <= msg.range_max]
+        min_front = min(valid_front_readings) if valid_front_readings else msg.range_max
+
         # Get readings
         self.distances = {
-            'front': msg.ranges[front_idx] if msg.range_min <= msg.ranges[front_idx] <= msg.range_max else msg.range_max,
-
+            #'front': msg.ranges[front_idx] if msg.range_min <= msg.ranges[front_idx] <= msg.range_max else msg.range_max,
+            'front' : min_front,
             'left': msg.ranges[left_idx] if msg.range_min <= msg.ranges[left_idx] <= msg.range_max else msg.range_max,
             'left_back': msg.ranges[left_back_idx] if msg.range_min <= msg.ranges[left_back_idx] <= msg.range_max else msg.range_max,
             #'left_front': msg.ranges[left_front_idx] if msg.range_min <= msg.ranges[left_front_idx] <= msg.range_max else msg.range_max,
@@ -173,7 +182,8 @@ class Turtlebot3Explorer:
             #'right_front': msg.ranges[right_front_idx] if msg.range_min <= msg.ranges[right_front_idx] <= msg.range_max else msg.range_max,
 
             'min_left_25_90': min_left_25_90,
-            'min_right_25_90': min_right_25_90
+            'min_right_25_90': min_right_25_90,
+
         }
 
     def get_distance_to_temp_goal(self, goal_x, goal_y):
@@ -225,18 +235,14 @@ class Turtlebot3Explorer:
         left_back = self.distances.get('left_back', float('inf'))
         left = self.distances.get('left',float('inf'))
         right = self.distances.get('right',float('inf'))
-
-        if not self.called:
-            self.just_once_called()
         
-        #self.log_all_nodes(self.curr_parent)
-        #rospy.loginfo(f"current Node : {self.curr_node.x}, {self.curr_node.y}")
-        if  (1000 > left_back > 0.6 and left > 0.6 ) or (1000 > right_back > 0.6 and right > 0.6): #because at the beginnig i receive inf from the laser
+        self.log_all_nodes(self.curr_parent)
+        if  (1000 > left_back > 0.63 and left > 0.63 ) or (1000 > right_back > 0.63 and right > 0.63): #because at the beginnig i receive inf from the laser
 
             if self.curr_node.parent is None or (not (self.current_x_real - 0.61 < self.curr_node.parent.x < self.current_x_real + 0.61) or
                                                     not (self.current_y_real - 0.61 < self.curr_node.parent.y < self.current_y_real + 0.61)
                                                 ):
-                rospy.loginfo(f"x: {self.curr_node.x}, y: {self.curr_node.y}")
+                #rospy.loginfo(f"x: {self.curr_node.x}, y: {self.curr_node.y}")
                 if self.curr_node.x == 0 and self.curr_node.y == 0:
                     self.curr_node.x = self.current_x_real
                     self.curr_node.y = self.current_y_real
@@ -267,11 +273,13 @@ class Turtlebot3Explorer:
 
             if hasattr(self, 'last_direction') and front_dist > 0.2:
                 self.move_forward()
+                
                     
         else:
             # Only move forward if front path is clear and we have a valid direction
             if hasattr(self, 'last_direction') and front_dist > 0.2:
                 self.move_forward()
+                
 
         if self.laser_scan_msg != 0:
                 if self.check_closed_way():
@@ -288,10 +296,17 @@ class Turtlebot3Explorer:
 
         cmd_vel = Twist()
         cmd_vel.linear.x = 0.2
+        if left_dist > 0.5:
+            self.move_beside_left = False
+        if right_dist > 0.5:
+            self.move_beside_left = True
+
         if left_dist > 0.6 and right_dist > 0.6 :
             cmd_vel.angular.z = 0
+
         #laufe neben der linken Wand
         elif self.move_beside_left:
+        #elif left_dist < right_dist:
             if min_right_25_90 < 0.2:
                 cmd_vel.angular.z = 0.2
                 cmd_vel.linear.x = 0.15
@@ -299,8 +314,8 @@ class Turtlebot3Explorer:
                 cmd_vel.angular.z = -0.2
             elif min_left_25_90 < 0.25:
                 cmd_vel.angular.z = -0.1
-            elif min_left_25_90 < 0.35:
-                cmd_vel.angular.z = 0
+            elif min_left_25_90 < 0.3:
+                cmd_vel.angular.z = 0.1
                 cmd_vel.linear.x = 0.23
             elif min_left_25_90 > 0.32:
                 cmd_vel.angular.z = 0.1
@@ -315,7 +330,7 @@ class Turtlebot3Explorer:
             elif min_right_25_90 < 0.25:
                 cmd_vel.angular.z = 0.1
             elif min_right_25_90 < 0.3:
-                cmd_vel.angular.z = 0
+                cmd_vel.angular.z = -0.1
                 cmd_vel.linear.x = 0.23
             elif min_right_25_90 > 0.32:
                 cmd_vel.angular.z = -0.1
@@ -328,6 +343,7 @@ class Turtlebot3Explorer:
         self.cmd_vel_pub.publish(cmd_vel)
 
         #rospy.loginfo(f"move: {self.move_beside_left}, left : {min_left_25_90}, right {min_right_25_90}, z: {cmd_vel.angular.z}")
+
 
     def rotate(self, direction):
         cmd_vel = Twist()
@@ -382,6 +398,9 @@ class Turtlebot3Explorer:
 
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
+        #self.temp_goal_x = rotate_x
+        #self.temp_goal_y = rotate_y
+        #self.get_new_goal(direction,10)
         if (left_dist < right_dist):
             self.move_beside_left = True
         else:
@@ -454,9 +473,9 @@ class Turtlebot3Explorer:
         rospy.loginfo(f"front: {front_dist}")
 
         # Check if paths are clear
-        left_clear = left_dist > 0.66
-        right_clear = right_dist > 0.66
-        front_dist = front_dist > 0.66
+        left_clear = left_dist > 0.58
+        right_clear = right_dist > 0.58
+        front_dist = front_dist > 0.58
         
         if self.check_if_node_saved():
             return -2
@@ -543,7 +562,7 @@ class Turtlebot3Explorer:
         if not self.laser_scan_msg:
             return False
 
-        MIN_PASSAGE_WIDTH = 0.58  # Minimum width needed for robot to pass through
+        MIN_PASSAGE_WIDTH = 0.5  # Minimum width needed for robot to pass through
         MAX_RANGE_CHECK = 3.0    # Maximum distance to check for obstacles
         
         ANGLE_RANGES = {
@@ -575,19 +594,19 @@ class Turtlebot3Explorer:
             start_idx = max(0, min(start_idx, len(ranges) - 1))
             end_idx = max(0, min(end_idx, len(ranges) - 1))
             
-            rospy.loginfo(f"Analyzing range {start_deg}° to {end_deg}°")
-            rospy.loginfo(f"Indices: {start_idx} to {end_idx}")
+            #rospy.loginfo(f"Analyzing range {start_deg}° to {end_deg}°")
+            #rospy.loginfo(f"Indices: {start_idx} to {end_idx}")
             
             valid_readings = []
             for i in range(start_idx, end_idx):
                 # Handle wraparound for indices
                 idx = i % len(ranges)
                 range_val = ranges[idx]
-                if self.laser_scan_msg.range_min <= range_val <= MAX_RANGE_CHECK:
+                if self.laser_scan_msg.range_min <= range_val: # <= MAX_RANGE_CHECK:
                     valid_readings.append(range_val)
             
             if not valid_readings:
-                rospy.loginfo(f"No valid readings in range {start_deg}°-{end_deg}°")
+                #rospy.logwarn(f"No valid readings in range {start_deg}°-{end_deg}°")
                 return True
                 
             max_gap = 0
@@ -595,32 +614,18 @@ class Turtlebot3Explorer:
                 gap = abs(valid_readings[i] - valid_readings[i + 1])
                 max_gap = max(max_gap, gap)
             
-            rospy.loginfo(f"Max gap in range {start_deg}°-{end_deg}°: {max_gap:.3f}m")
+            #rospy.loginfo(f"Max gap in range {start_deg}°-{end_deg}°: {max_gap:.3f}m")
             return max_gap < MIN_PASSAGE_WIDTH
 
         # Check each direction
         for direction, angle_ranges in ANGLE_RANGES.items():
             for angle_range in angle_ranges:
                 if not analyze_direction(angle_range):
-                    rospy.loginfo(f"Passage found in {direction} direction")
+                    #rospy.logwarn(f"Passage found in {direction} direction")
                     return False
                 
-        rospy.loginfo("All directions appear closed")
+        rospy.logwarn("All directions appear closed")
         return True
-    
-    '''
-    def check_closed_way(self):
-        left_dist = self.distances.get('left', float('inf'))
-        right_dist = self.distances.get('right', float('inf'))
-        front_dist = self.distances.get('front', float('inf'))
-        cmd_vel = Twist()
-        #rospy.loginfo(f"right: {right_dist}, left {left_dist}, front: {front_dist}")
-        if left_dist < 0.6 and right_dist < 0.6 and front_dist < 0.3:
-            cmd_vel.linear.x = 0
-            self.cmd_vel_pub.publish(cmd_vel)
-            return True
-        return False
-    '''
 
 
     def move_to_goal(self,goal_x,goal_y):
@@ -680,6 +685,8 @@ class Turtlebot3Explorer:
     def control_loop(self):
         # Hauptkontrollschleife
         rate = rospy.Rate(10)
+        
+        #self.just_once_called()
         while not rospy.is_shutdown():
             if self.get_distance_to_temp_goal(self.goal_x,self.goal_y) < 0.1:
                 rospy.loginfo("goal reached")
