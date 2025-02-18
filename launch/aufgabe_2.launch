@@ -11,7 +11,7 @@
     <arg name="goal_y" default="-3.690054416656494"/>-->
 
     <!--<arg name="goal_x" default="2.4167144298553467"/>
-    <arg name="goal_y" default="-5.35239315032959"/>-->
+    <arg name="goal_y" default="-5.35239315032959"/>>-->
 
 
     <include file="$(find maze_pkg)/launch/maze.launch">
