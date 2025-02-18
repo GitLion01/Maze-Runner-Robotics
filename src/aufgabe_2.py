@@ -371,12 +371,15 @@ class Turtlebot3Explorer:
 
         if right_dist > 0.5 and left_dist > 0.5:
             self.get_new_goal(direction,direct-0.3,0.3)
+            rospy.loginfo(f"right: {right_dist}, left: {left_dist}")
         elif (left_dist < right_dist):
             self.move_beside_left = True
             self.get_new_goal(direction,direct-0.3,left_dist)
+            rospy.loginfo(f"left: {left_dist}")
         else:
             self.move_beside_left = False
             self.get_new_goal(direction,direct-0.3,right_dist)
+            rospy.loginfo(f"right: {right_dist}")
 
     def number_of_roads(self): #ToDo : integrate it with check closed way
         direct = self.distances.get('direct', float('inf'))
@@ -473,7 +476,10 @@ class Turtlebot3Explorer:
                # x= self.get_the_x(distance)
            # else: #x is fixed
                 rospy.loginfo(f"2")
-                x= self.current_x_real - difference
+                if difference < 0:
+                    x= self.current_x_real - difference
+                else:
+                    x= self.current_x_real + difference
                 y= self.get_the_y(distance)
                 rospy.loginfo(f"diff: {difference}")
                 rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}")
@@ -486,7 +492,10 @@ class Turtlebot3Explorer:
                 
             #else: #y is fixed
                 rospy.loginfo(f"4")
-                y= self.current_y_real + difference
+                if difference < 0:
+                    y= self.current_y_real + difference
+                else:
+                    y= self.current_y_real - difference
                 x= self.get_the_x(distance)
                 rospy.loginfo(f"diff: {difference}")
                 rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}")
@@ -549,7 +558,13 @@ class Turtlebot3Explorer:
 
         rospy.loginfo(f"in the return to the parent: {goal_x},   {goal_y}, {self.curr_node.parent.number_of_roads}")
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
+
         cmd_vel = Twist()
+
+        cmd_vel.linear.x = 0.0
+        cmd_vel.angular.z = 0.0
+        self.cmd_vel_pub.publish(cmd_vel)
+        #rospy.loginfo(f"das x: {cmd_vel.linear.x}")
         while distance_to_goal > 0.1:
             self.move_to_goal(goal_x, goal_y)
             distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
@@ -652,15 +667,15 @@ class Turtlebot3Explorer:
         angle_diff = self.get_angle_to_goal(goal_x, goal_y)
         #rospy.loginfo(f"angle {distance_to_goal}")
         cmd_vel = Twist()
-        
+        '''
         if abs(angle_diff) > 0.4:
             cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
             cmd_vel.linear.x = 0.0
+        elif abs(angle_diff) > 0.3:
+            cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
         elif abs(angle_diff) > 0.2:
             cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-            if distance_to_goal > 0.5:
-                cmd_vel.linear.x = 0.3
-            elif distance_to_goal > 0.3:
+            if distance_to_goal > 0.3:
                 cmd_vel.linear.x = 0.18
             elif distance_to_goal > 0.1:
                 cmd_vel.linear.x = 0.12
@@ -683,6 +698,7 @@ class Turtlebot3Explorer:
                 cmd_vel.linear.x = 0.18
             elif distance_to_goal > 0.1:
                 cmd_vel.linear.x = 0.12
+                '''
         '''
         else:
             cmd_vel.angular.z = 0.0
@@ -695,8 +711,27 @@ class Turtlebot3Explorer:
             elif distance_to_goal > 0.1:
                 cmd_vel.linear.x = 0.15
         '''
+        cmd_vel.linear.x = 0.0
+        if abs(angle_diff) > 0.4:
+            cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
+        elif abs(angle_diff) > 0.2:
+            cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
+        elif abs(angle_diff) > 0.1:
+            cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+        else:
+            cmd_vel.angular.z = 0
+            if distance_to_goal > 1:
+                cmd_vel.linear.x = 0.3
+            elif distance_to_goal > 0.5:
+                cmd_vel.linear.x = 0.23
+            elif distance_to_goal > 0.3:
+                cmd_vel.linear.x = 0.2
+            elif distance_to_goal > 0.15:
+                cmd_vel.linear.x = 0.15
+            else:
+                cmd_vel.linear.x = 0.1
         self.cmd_vel_pub.publish(cmd_vel)
-        
+        #rospy.loginfo(f"das 2 x: {cmd_vel.linear.x}, {cmd_vel.angular.z}")
     
     def control_loop(self):
         # Hauptkontrollschleife
