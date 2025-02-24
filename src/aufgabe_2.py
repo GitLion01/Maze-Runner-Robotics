@@ -362,7 +362,7 @@ class Turtlebot3Explorer:
             self.get_new_goal(direct-0.3,right_dist,True)
             rospy.loginfo(f"right: {right_dist}")
 
-    def number_of_roads(self): #ToDo : integrate it with check closed way
+    def number_of_roads(self): 
         direct = self.distances.get('direct', float('inf'))
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
@@ -407,14 +407,6 @@ class Turtlebot3Explorer:
             return True
 
 
-    '''
-    #return +1 (against the O'clock) or -1
-    get the direction (left, right) based on , which one is closer to the goal
-    must be checked if the left / right open and there is no wall there.
-    #you have also to check if this way is already visited !!!
-    the best way is to save the points in the move() function after the cmd_vel.linear.x to make sure that you have saved all visited points
-    '''
-    #Sirine
     def get_the_new_orientation(self):
         """
         Determine the new orientation at a crossroads to move closer to the goal.
@@ -529,16 +521,7 @@ class Turtlebot3Explorer:
             else: # 2.25 < x < 3 and -3 < x < -2.25
                 return abs(self.current_x_real) + distance
 
-    '''
-    go back to the last point where you were before you made the dissicion to turn left or right
-    this point is saved already
-    maybe you have to go two times back 
-    (so if the robot arrived to the point you have to delete it from the arrays (return_to_x and return_to_y) 
-        in order to make the last new point is the point where the robot can return to it)
-    you can use in this function the a_star algorithm from Part 1 and set the last item in the return_to_x and return_to_y arrays as the goal item
-    and use the calulate distance function to check if you arrived to the goal
-    '''
-    #Soufian
+
     def return_to_the_last_crossroads(self):
         if self.curr_node is None:
             rospy.logwarn("Node besitzt kein Parent")
@@ -555,7 +538,7 @@ class Turtlebot3Explorer:
         self.cmd_vel_pub.publish(cmd_vel)
         #rospy.loginfo(f"das x: {cmd_vel.linear.x}")
         while distance_to_goal > 0.15:
-            self.return_to_parent(goal_x, goal_y)
+            self.move_to_goal(goal_x, goal_y)
             distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
 
         cmd_vel.linear.x = 0.0
@@ -651,22 +634,9 @@ class Turtlebot3Explorer:
 
         # Calculate distance and angle to goal
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
-        #rospy.loginfo(f"x: {goal_x} , y: {goal_y}")
         angle_diff = self.get_angle_to_goal(goal_x, goal_y)
-        #rospy.loginfo(f"angle {distance_to_goal}")
         cmd_vel = Twist()
-        '''
-        else:
-            cmd_vel.angular.z = 0.0
-            if distance_to_goal > 1:
-                cmd_vel.linear.x = 0.5
-            elif distance_to_goal > 0.5:
-                cmd_vel.linear.x = 0.4
-            elif distance_to_goal > 0.3:
-                cmd_vel.linear.x = 0.2
-            elif distance_to_goal > 0.1:
-                cmd_vel.linear.x = 0.15
-        '''
+
         cmd_vel.linear.x = 0.0
         if not self.already_oriented:
             if abs(angle_diff) > 0.4:
@@ -685,10 +655,8 @@ class Turtlebot3Explorer:
         else:
             self.already_oriented = True
             cmd_vel.angular.z = 0
-            if distance_to_goal > 1:
-                cmd_vel.linear.x = 0.28
-            elif distance_to_goal > 0.5:
-                cmd_vel.linear.x = 0.23
+            if distance_to_goal > 0.5:
+                cmd_vel.linear.x = 0.22
             elif distance_to_goal > 0.3:
                 cmd_vel.linear.x = 0.2
             elif distance_to_goal > 0.15:
@@ -707,9 +675,7 @@ class Turtlebot3Explorer:
     def return_to_parent(self,goal_x,goal_y):
         # Calculate distance and angle to goal
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
-        #rospy.loginfo(f"x: {goal_x} , y: {goal_y}")
         angle_diff = self.get_angle_to_goal(goal_x, goal_y)
-        #rospy.loginfo(f"angle {distance_to_goal}")
         cmd_vel = Twist()
         
         if abs(angle_diff) > 0.4:
