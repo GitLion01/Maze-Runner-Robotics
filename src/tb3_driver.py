@@ -106,7 +106,6 @@ class PathFollower:
         #self.goal_x , self.goal_y = self.path_meter[self.current_goal_index] # because the index can be updated in the check_line Method
 
         rospy.loginfo(f"curr_index : {self.current_goal_index}")
-        
         if abs(angle_diff) > 0.2:
             cmd_vel.linear.x = 0.0
             if abs(angle_diff) > 0.4:
@@ -123,26 +122,7 @@ class PathFollower:
                 cmd_vel.linear.x = 0.2
             elif distance_to_goal > 0.15:
                 cmd_vel.linear.x = 0.15
-        '''
-        if abs(angle_diff) > 0.4:
-            cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
-        elif abs(angle_diff) > 0.2:
-            cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-        elif abs(angle_diff) > 0.1:
-            cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-        else:
-            cmd_vel.angular.z = 0
-        if distance_to_goal > 1:
-            cmd_vel.linear.x = 0.5
-        elif distance_to_goal > 0.5:
-            cmd_vel.linear.x = 0.4
-        elif distance_to_goal > 0.3:
-            cmd_vel.linear.x = 0.2
-        elif distance_to_goal > 0.15:
-            cmd_vel.linear.x = 0.15
-        rospy.sleep(1)
-        '''
-
+        
         # Check if we've reached the current waypoint
         if distance_to_goal < 0.15:
             self.current_goal_index += 1
