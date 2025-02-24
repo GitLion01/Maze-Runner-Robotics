@@ -4,7 +4,6 @@ import heapq
 import rospy
 import numpy as np
 from turtlebot_maze_navigation.msg import MapData
-from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Pose, PoseArray, Point
 
 class Node:
@@ -40,9 +39,6 @@ class Node:
                 if node not in closed_list: 
                     visited_positions.add((node.position[0], node.position[1]))
                     neighbors.append(node)
-                #rospy.loginfo(f"Nachbarn für {self.position}: {[n.position for n in neighbors]}")
-        #if not neighbors:
-            #rospy.logwarn(f"Keine gültigen Nachbarn für {self.position}.")
         self.neighbors = neighbors
         
 
@@ -235,14 +231,7 @@ class AStarNode:
         # Variablen
         self.grid = None
         self.path = None
-        """
-        # Weltkoordinaten aus der Launch-Datei
-        self.start_world = (rospy.get_param("~start_x"), rospy.get_param("~start_y"))
-        self.goal_world = (rospy.get_param("~goal_x"), rospy.get_param("~goal_y"))
-        rospy.loginfo(f"Start Weltkoordinaten: {self.start_world}, Ziel Weltkoordinaten: {self.goal_world}")
 
-        # Umrechnung von Welt- in Pixelkoordinaten erfolgt in map_callback
-        """
         self.start_pixel = None
         self.goal_pixel = None
         self.map_resolution = None
@@ -266,7 +255,6 @@ class AStarNode:
         #rospy.logwarn("map_callback aufgerufen")
 
         if self.grid:  # Überprüfen, ob die Karte bereits gesetzt wurde
-            #rospy.logwarn("Karte wurde bereits empfangen. Callback wird ignoriert.")
             return
         
         self.map_resolution = msg.resolution
@@ -281,39 +269,6 @@ class AStarNode:
         if self.grid and self.start_pixel:
             rospy.logwarn(f"Grid erfolgreich erstellt mit Dimensionen: {width}x{height}")
             rospy.logwarn(f"Wert der Startposition im Grid: {self.grid[int(self.start_pixel[1])][int(self.start_pixel[0])]}")
-        """
-        # Umrechnung der Weltkoordinaten in Pixelkoordinaten
-        try:
-            self.start_pixel = (
-                int((self.start_world[0] - self.map_origin[0]) / self.map_resolution),
-                int((self.start_world[1] - self.map_origin[1]) / self.map_resolution)
-            )
-            self.goal_pixel = (
-                int((self.goal_world[0] - self.map_origin[0]) / self.map_resolution),
-                int((self.goal_world[1] - self.map_origin[1]) / self.map_resolution)
-            )
-            rospy.loginfo(f"Start Pixel: {self.start_pixel}, Ziel Pixel: {self.goal_pixel}")
-
-            # Prüfen, ob Start- und Zielpunkte gültig sind
-            start_value = self.grid[self.start_pixel[1]][self.start_pixel[0]]
-            goal_value = self.grid[self.goal_pixel[1]][self.goal_pixel[0]]
-            rospy.loginfo(f"Start-Wert im Grid: {start_value}, Ziel-Wert im Grid: {goal_value}")
-
-            if start_value != 0:
-                rospy.logerr("Startpunkt liegt auf einem Hindernis oder außerhalb der Karte!")
-                return
-            if goal_value != 0:
-                rospy.logerr("Zielpunkt liegt auf einem Hindernis oder außerhalb der Karte!")
-                return
-
-            # Wenn alles gültig ist, starte die Planung
-            rospy.loginfo("Starte Pfadplanung.")
-            self.plan_path()
-
-        except IndexError as e:
-            rospy.logerr(f"Indexfehler beim Zugriff auf Grid: {e}")
-            return
-        """
    
     def plan_path(self):
         """
@@ -366,7 +321,6 @@ class AStarNode:
             pose.position.z = z
             path_msg.poses.append(pose)
 
-        rospy.loginfo("in the path publish")
         self.path_pub.publish(path_msg)
 
 

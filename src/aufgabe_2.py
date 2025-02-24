@@ -2,12 +2,10 @@
 
 import rospy
 import math
-from geometry_msgs.msg import Twist, Point, PoseArray
+from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry, OccupancyGrid
 from tf.transformations import euler_from_quaternion
-from collections import deque
-from turtlebot_maze_navigation.msg import MapData
 from visualization_msgs.msg import Marker
 
 """

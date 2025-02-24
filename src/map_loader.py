@@ -112,7 +112,7 @@ class RobotTracker:
 
         # Create modified map with extended walls
         self.map_2d_modified = [list(row) for row in self.map_2d]
-        wall_extension = 4  # Number of cells to extend walls
+        wall_extension = 5  # Number of cells to extend walls
         self.add_100_to_the_next_points(height,width,wall_extension)
         
         # Convert modified 2D map back to 1D
@@ -162,7 +162,7 @@ class RobotTracker:
         for y in range(height):
             for x in range(width):
                 if self.map_2d[y][x] == 100:  # If it's a wall
-                    self.check_if_corner(y,x) # convert the point after the corner to 100
+                    #self.check_if_corner(y,x) # convert the point after the corner to 100
                     for dy in range(-wall_extension, wall_extension + 1):
                         for dx in range(-wall_extension, wall_extension + 1):
                             nx, ny = x + dx, y + dy

@@ -5,9 +5,8 @@ import math
 import tf
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, PoseArray
-from sensor_msgs.msg import LaserScan
 from tf.transformations import euler_from_quaternion
-from geometry_msgs.msg import Pose, PoseArray
+from visualization_msgs.msg import Marker
 
 class PathFollower:
     def __init__(self):
@@ -28,6 +27,7 @@ class PathFollower:
 
         self.path_sub_real = None
         self.path_sub = None
+        self.already_oriented= False
 
 
         # Publishers and Subscribers
@@ -35,6 +35,7 @@ class PathFollower:
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
         self.path_sub_real = rospy.Subscriber('/real_world_path', PoseArray, self.real_path_callback)
         self.path_sub = rospy.Subscriber('/planned_path', PoseArray, self.path_callback)
+        self.temp_goal_pub = rospy.Publisher('/temp_goal_pub', Marker, queue_size=10)
         
         # TF listener for coordinate transformations
         self.tf_listener = tf.TransformListener()
@@ -105,26 +106,65 @@ class PathFollower:
         #self.check_line(goal_x_pixel,goal_y_pixel) #get the last point in the line (not point by point)
         #self.goal_x , self.goal_y = self.path_meter[self.current_goal_index] # because the index can be updated in the check_line Method
 
-        rospy.loginfo(f"curr_index : {self.current_goal_index}")
-        if abs(angle_diff) > 0.2:
+        marker = Marker()
+        marker.header.frame_id = "map"  # Use the appropriate frame_id
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "temp_goals"
+        marker.id = 0
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.pose.position.x = self.goal_x
+        marker.pose.position.y = self.goal_y
+        marker.pose.position.z = 0.0
+        marker.pose.orientation.w = 1.0
+        marker.scale.x = 0.1  # Size of the sphere
+        marker.scale.y = 0.1
+        marker.scale.z = 0.1
+        marker.color.r = 1.0  # Red color
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0  # Fully opaque
+        marker.lifetime = rospy.Duration(0)  # 0 = forever
+        
+        # Publish the marker
+        self.temp_goal_pub.publish(marker)
+
+        if abs(angle_diff) > 0.6:
+            cmd_vel.angular.z = 2.84 if angle_diff > 0 else -2.84
             cmd_vel.linear.x = 0.0
-            if abs(angle_diff) > 0.4:
-                cmd_vel.angular.z = 0.6 if angle_diff > 0 else -0.6
-            elif abs(angle_diff) > 0.2:
-                cmd_vel.angular.z = 0.3 if angle_diff > 0 else -0.3
+        if abs(angle_diff) > 0.5:
+            cmd_vel.angular.z = 2 if angle_diff > 0 else -2
+            cmd_vel.linear.x = 0.0
+        elif abs(angle_diff) > 0.4:
+            cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
+            cmd_vel.linear.x = 0.0
+        elif abs(angle_diff) > 0.3:
+            cmd_vel.angular.z = 1 if angle_diff > 0 else -1
+            cmd_vel.linear.x = 0.0
         else:
-            cmd_vel.angular.z = 0.0
-            if distance_to_goal > 1:
-                cmd_vel.linear.x = 0.5
-            elif distance_to_goal > 0.5:
-                cmd_vel.linear.x = 0.4
-            elif distance_to_goal > 0.3:
-                cmd_vel.linear.x = 0.2
-            elif distance_to_goal > 0.15:
-                cmd_vel.linear.x = 0.15
+            if distance_to_goal > 0.22:
+                cmd_vel.linear.x = 0.22
+                if abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
+                elif abs(angle_diff) > 0.1:
+                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+                elif abs(angle_diff) > 0.05:
+                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+                else:
+                    cmd_vel.angular.z = 0
+            elif distance_to_goal > 0.2:
+                cmd_vel.linear.x = 0.21
+                if abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
+                elif abs(angle_diff) > 0.1:
+                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+                elif abs(angle_diff) > 0.05:
+                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+                else:
+                    cmd_vel.angular.z = 0
         
         # Check if we've reached the current waypoint
-        if distance_to_goal < 0.15:
+        if distance_to_goal < 0.23:
             self.current_goal_index += 1
             if self.current_goal_index >= len(self.path):
                 rospy.loginfo("Reached final goal!")
