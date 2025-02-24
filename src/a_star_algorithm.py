@@ -58,83 +58,11 @@ class AStar:
         while current:
             path.append(current.position)
             current = current.parent
-
-        # smoothens the path
-        path = self.edited_path(path)
-        rospy.logwarn("Path optimized!")
         
         path.reverse()  # Pfad umkehren
 
         rospy.logwarn(f"path reconstructed {len(path)}")
         return path
-                
-    def edited_path(self, path):
-        if path:
-            new_path = path.copy()
-            compare_point = 0
-            while compare_point < len(path):
-                #rospy.loginfo(f"compare_point: {compare_point}")
-                first_x = path[compare_point][0] #access the x list
-                first_y = path[compare_point][1] #access the y list
-
-                for k in range(compare_point,len(path)):
-                    point = path[k]
-                    diff_x = abs(point[0] - first_x)
-                    diff_y = abs(point[1] - first_y)
-
-                    #check if x is changing , if yes then check the last unchnaged y (+-1)   
-                    if diff_x > 2:
-                        rospy.loginfo(f"x: {point[0]}, y: {point[1]}")
-                        y_array=[]
-                        break_point=0
-
-                        for j in range(compare_point,len(path)):
-                            points= path[j] #get the data point by point
-                            y_array.append(points[1])
-                            if abs(first_y-points[1]) > 2: #if y too much changed
-                                break_point=j
-                                break
-                        mean = np.mean(y_array)
-                        mean_int=round(mean)
-
-                        #set all Ys in this range to mean
-                        for j in range(compare_point,break_point):
-                            new_path[j] = (new_path[j][0], mean_int, new_path[j][2])
-
-                        if break_point != 0:
-                            compare_point=break_point
-                        break
-
-                    #check if x is changing , if yes then check the last unchnaged y (+-1)   
-                    if diff_y > 2:
-                        x_array=[]
-                        break_point=0
-
-                        for i in range(compare_point,len(path)):
-                            points= path[i] #get the data point by point
-                            x_array.append(points[0])
-                            if abs(first_x-points[0]) > 2: #if x too much changed
-                                break_point=i
-                                break
-                        mean = np.mean(x_array)
-                        mean_int=round(mean)
-
-                        #set all Xs in this range to mean
-                        for i in range(compare_point,break_point):
-                            new_path[i] = (mean_int ,new_path[i][1], new_path[i][2])
-
-                        if break_point != 0:
-                            compare_point=break_point
-                        break
-
-                    if k == len(path)-1:
-                        #rospy.loginfo("no optimisation needed")
-                        compare_point= len(path) #break the while
-                    compare_point += 1
-
-            return new_path
-
-
 
     def run(self):
         rospy.logwarn("Aufruf run()")

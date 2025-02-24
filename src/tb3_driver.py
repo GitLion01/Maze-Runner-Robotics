@@ -101,10 +101,6 @@ class PathFollower:
         angle_diff = self.get_angle_to_goal()
         
         cmd_vel = Twist()
-        
-        goal_x_pixel, goal_y_pixel = self.path[self.current_goal_index]
-        #self.check_line(goal_x_pixel,goal_y_pixel) #get the last point in the line (not point by point)
-        #self.goal_x , self.goal_y = self.path_meter[self.current_goal_index] # because the index can be updated in the check_line Method
 
         marker = Marker()
         marker.header.frame_id = "map"  # Use the appropriate frame_id
