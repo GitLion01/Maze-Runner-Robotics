@@ -2,7 +2,7 @@
 
 import rospy 
 from nav_msgs.msg import Odometry, OccupancyGrid
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PointStamped
 from turtlebot_maze_navigation.msg import MapData
 from sensor_msgs.msg import PointCloud, ChannelFloat32, PointCloud2,PointField
 from geometry_msgs.msg import Point32
@@ -20,29 +20,22 @@ class RobotTracker:
         self.map = None
         self.map_2d = None # Placeholder for 2D costmap
         # Set a dummy goal point in map coordinates
-        '''
-        self.start_x = -0.724765419960022
-        self.start_y = 0.7463579773902893
-        self.start_z = 0
-        
-        self.goal_x = -4.41406774520874
-        self.goal_y = 4.180548191070557
-        self.goal_z = 0.0
-        '''
 
         self.start_x = 0.03374290466308594
         self.start_y = -0.0013123006792739
         self.start_z = 0
         
-        self.goal_x = 1.62770414352417
-        self.goal_y = -3.690054416656494
+        self.goal_x = None
+        self.goal_y = None
         self.goal_z = 0.0
 
-        self.goal_position = None  # Placeholder for goal position in pixel coordinates
-        self.start_position = None
+        self.width = None
+        self.height = None
 
         # Flag to ensure odom_callback runs only once
         self.odom_processed = False
+
+        self.checked_once =False
 
         # Subscribers to /odom and /map topics
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
@@ -53,6 +46,32 @@ class RobotTracker:
         self.start_pub = rospy.Publisher('/start_point', Point, queue_size=10)
         self.goal_pub = rospy.Publisher('/goal_point', Point, queue_size=10)
         self.map_pub = rospy.Publisher('/map_data', MapData, queue_size=10)
+        self.goal_sub = rospy.Subscriber('/maze_goal', PointStamped, self.set_goal)
+
+
+    def set_goal(self, msg: Odometry):
+        self.goal_x = msg.point.x
+        self.goal_y = msg.point.y
+
+        # Calculate the pixel coordinates of the goal
+        pixel_goal_x = int((self.goal_x - self.map_origin_x) / self.map_resolution)
+        pixel_goal_y = int((self.goal_y - self.map_origin_y) / self.map_resolution)
+        
+        # Check if the goal is within map bounds and in a free space
+        if (0 <= pixel_goal_x < self.width and 0 <= pixel_goal_y < self.height and 
+            self.map_2d[pixel_goal_y][pixel_goal_x] == 0):
+            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
+        else:
+            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
+            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
+            rospy.logerr(f"Invalid goal position: map value={self.map_2d[pixel_goal_y][pixel_goal_x] if 0 <= pixel_goal_x < self.width and 0 <= pixel_goal_y < self.height else 'out of bounds'}")
+            
+        
+        if self.map is not None and not self.checked_once:
+            self.checked_once = True
+            self.modify_the_map()          
+        else:
+            rospy.logwarn("Waiting for /map topic.")
         
 
     def odom_callback(self, msg):
@@ -87,8 +106,6 @@ class RobotTracker:
             for x in range(width):
                 map_1d.append(map_2d[y][x])
         return map_1d
-          
-        
     
     def map_callback(self, msg):
         # Extract map data
@@ -97,26 +114,26 @@ class RobotTracker:
             return
       
         self.map = msg.info
-
         # Initialize map origin and resolution
         self.map_origin_x = self.map.origin.position.x
         self.map_origin_y = self.map.origin.position.y
         self.start_z = self.map.origin.position.z
         self.map_resolution = self.map.resolution
-        width = self.map.width
-        height = self.map.height
+        self.width = self.map.width
+        self.height = self.map.height
 
         # Convert the received 1D map to a 2D array
-        self.map_2d = [msg.data[i:i + width] for i in range(0, len(msg.data), width)]
+        self.map_2d = [msg.data[i:i + self.width] for i in range(0, len(msg.data), self.width)]
 
 
+    def modify_the_map(self):
         # Create modified map with extended walls
         self.map_2d_modified = [list(row) for row in self.map_2d]
-        wall_extension = 5  # Number of cells to extend walls
-        self.add_100_to_the_next_points(height,width,wall_extension)
+        wall_extension = 4  # Number of cells to extend walls
+        self.add_100_to_the_next_points(self.height,self.width,wall_extension)
         
         # Convert modified 2D map back to 1D
-        modified_map_1d = self.convert_2d_to_1d(self.map_2d_modified, width, height)
+        modified_map_1d = self.convert_2d_to_1d(self.map_2d_modified, self.width, self.height)
 
         pkg = MapData()
         pkg.costmap = modified_map_1d
@@ -126,49 +143,44 @@ class RobotTracker:
         pkg.origin = Point(self.map.origin.position.x, self.map.origin.position.y, 0.0)
         self.map_pub.publish(pkg)
         
-        if self.map is not None:
-            pixel_goal_x = int((self.goal_x - self.map_origin_x) / self.map_resolution)
-            pixel_goal_y = int((self.goal_y - self.map_origin_y) / self.map_resolution)
+        pixel_goal_x = int((self.goal_x - self.map_origin_x) / self.map_resolution)
+        pixel_goal_y = int((self.goal_y - self.map_origin_y) / self.map_resolution)
 
-            pixel_start_x = int((self.start_x - self.map_origin_x) / self.map_resolution)
-            pixel_start_y = int((self.start_y - self.map_origin_y) / self.map_resolution)
-            
-            # Store the goal position in pixel coordinates
-            gx, gy, gz = (pixel_goal_x, pixel_goal_y, 0.0)
-            sx, sy, sz = (pixel_start_x, pixel_start_y, 0.0)
+        pixel_start_x = int((self.start_x - self.map_origin_x) / self.map_resolution)
+        pixel_start_y = int((self.start_y - self.map_origin_y) / self.map_resolution)
+        
+        # Store the goal position in pixel coordinates
+        gx, gy, gz = (pixel_goal_x, pixel_goal_y, 0.0)
+        sx, sy, sz = (pixel_start_x, pixel_start_y, 0.0)
 
-            self.goal_pub.publish(Point(gx, gy, gz))
-            self.start_pub.publish(Point(sx, sy, sz))
-            rospy.logwarn(f"pixel_goal: x={pixel_goal_x}, y={pixel_goal_y}")
-            rospy.logwarn(f"pixel_start: x={pixel_start_x}, y={pixel_start_y}")
+        self.goal_pub.publish(Point(gx, gy, gz))
+        self.start_pub.publish(Point(sx, sy, sz))
+        rospy.logwarn(f"pixel_goal: x={pixel_goal_x}, y={pixel_goal_y}")
+        rospy.logwarn(f"pixel_start: x={pixel_start_x}, y={pixel_start_y}")
 
-            rospy.logwarn(f"goal: x={self.goal_x}, y={self.goal_y}")
-            rospy.logwarn(f"start: x={self.start_x}, y={self.start_y}")
+        rospy.logwarn(f"goal: x={self.goal_x}, y={self.goal_y}")
+        rospy.logwarn(f"start: x={self.start_x}, y={self.start_y}")
 
-            rospy.logwarn(f"map origin: x={self.map_origin_x}, y={self.map_origin_y}")
-            rospy.logwarn(f"map resolution : {self.map_resolution}")
+        rospy.logwarn(f"map origin: x={self.map_origin_x}, y={self.map_origin_y}")
+        rospy.logwarn(f"map resolution : {self.map_resolution}")
 
-            rospy.logwarn(f"map height: {height}, width: {width}")
-            
-            
-        else:
-            rospy.logwarn("No map data received yet. Waiting for /map topic.")
+        rospy.logwarn(f"map height: {self.height}, width: {self.width}")
 
         self.publish_walls_after_edition()
-
 
     def add_100_to_the_next_points(self,height,width,wall_extension):
         # Extend walls
         for y in range(height):
             for x in range(width):
                 if self.map_2d[y][x] == 100:  # If it's a wall
-                    #self.check_if_corner(y,x) # convert the point after the corner to 100
                     for dy in range(-wall_extension, wall_extension + 1):
                         for dx in range(-wall_extension, wall_extension + 1):
                             nx, ny = x + dx, y + dy
                             if 0 <= nx < width and 0 <= ny < height and not self.check_if_start_or_end_100(ny,nx):
                                 if self.map_2d[ny][nx] in [-1, 0]:  # If target cell is unknown or free
                                     self.map_2d_modified[ny][nx] = 100
+                            if self.check_if_start_or_end_100(ny,nx):
+                                self.map_2d_modified[ny][nx] = 0
 
     def check_if_start_or_end_100(self,y,x):
         for x in range(x-1,x+2):
@@ -178,34 +190,6 @@ class RobotTracker:
                     return True
         return False
     
-    def check_if_corner(self,y,x):
-        if not self.check_if_start_or_end_100(y,x):
-            #check if this is a corner
-            if self.map_2d[y][x-1] == 100 and self.map_2d[y-1][x] == 100 : #  __
-                self.map_2d_modified[y+1][x+1] = 100                       	     #  |
-                self.map_2d_modified[y+2][x+2] = 100
-
-                self.map_2d_modified[y][x+1] = 100
-                self.map_2d_modified[y+1][x] = 100
-            elif self.map_2d[y][x+1] == 100 and self.map_2d[y-1][x] == 100 :        #  __
-                self.map_2d_modified[y+1][x-1] = 100                                	      # |
-                self.map_2d_modified[y+2][x-2] = 100
-
-                self.map_2d_modified[y][x-1] = 100
-                self.map_2d_modified[y+1][x] = 100
-            elif self.map_2d[y][x+1] == 100 and self.map_2d[y+1][x] == 100 :  # |
-                self.map_2d_modified[y-1][x-1] = 100                         	      # ---
-                self.map_2d_modified[y-2][x-2] = 100
-
-                self.map_2d_modified[y-1][x] = 100
-                self.map_2d_modified[y][x-1] = 100
-            elif self.map_2d[y][x-1] == 100 and self.map_2d[y+1][x] == 100 :        # |
-                self.map_2d_modified[y-1][x+1] = 100                             		     #  ---
-                self.map_2d_modified[y-2][x+2] = 100
-
-                self.map_2d_modified[y][x+1] = 100
-                self.map_2d_modified[y-1][x] = 100
-
     def publish_walls_after_edition(self):
         '''
         sensor_msgs/PointCloud is needed,and not geometry_msgs/Point.
@@ -245,5 +229,3 @@ if __name__ == '__main__':
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
-
-

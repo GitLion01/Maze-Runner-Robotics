@@ -31,18 +31,12 @@ class Node:
 
 class Turtlebot3Explorer:
     def __init__(self):
-        rospy.init_node('aufgabe2', anonymous=True)
-        rospy.loginfo("aufgabe_2 initialized")
+        rospy.init_node('aufgabe3', anonymous=True)
 
         # SLAM und Kartierungsvariablen
         self.return_to_x = []  # Store X coordinates of blocked dead-ends
         self.return_to_y = []  # Store Y coordinates of blocked dead-ends
 
-        # self.current_x_real = rospy.get_param('start_x', 0.03374290466308594)
-        # self.current_y_real = rospy.get_param('start_y', -0.0013123006792739)
-
-        # self.goal_x = rospy.get_param('goal_x', 3.6837387084960938)
-        # self.goal_y = rospy.get_param('goal_y', -3.395461082458496)
         self.current_x_real = 0.03374290466308594
         self.current_y_real = -0.0013123006792739
         self.goal_x = None
@@ -75,7 +69,7 @@ class Turtlebot3Explorer:
             self.curr_node = node
             #self.curr_node.parent = node #the root is the parent of itself
             self.curr_parent = node
-            self.curr_node.number_of_roads = 3 #need to make this dinamic
+            self.curr_node.number_of_roads = 3
 
         self.move_beside_left = True
         self.distances = {}  # Store distances to walls in different directions
@@ -94,7 +88,6 @@ class Turtlebot3Explorer:
     def set_goal(self, msg: Odometry):
         self.goal_x = msg.point.x
         self.goal_y = msg.point.y
-        rospy.loginfo(f"self.goal_x: {self.goal_x}, self.goal_y: {self.goal_y}")
 
     def odom_callback(self, msg: Odometry):
         """Update robot's current position and orientation from odometry."""
@@ -235,13 +228,6 @@ class Turtlebot3Explorer:
         left_back = self.distances.get('left_back', float('inf'))
         left = self.distances.get('left',float('inf'))
         right = self.distances.get('right',float('inf'))
-        
-        if self.get_laser_distance(self.laser_scan_msg) >= self.get_distance_to_temp_goal(self.goal_x, self.goal_y):
-            distance_to_goal = self.get_distance_to_temp_goal(self.goal_x, self.goal_y)
-            while distance_to_goal > 0.1:
-                self.move_to_goal(self.goal_x, self.goal_y)
-                distance_to_goal = self.get_distance_to_temp_goal(self.goal_x, self.goal_y)
-            self.stop_robot()
 
         #self.log_all_nodes(self.curr_parent)
         if  (left > 0.58 ) or (right > 0.58): #because at the beginnig i receive inf from the laser
@@ -426,37 +412,6 @@ class Turtlebot3Explorer:
             number_of_roads +=1
             rospy.loginfo(f"right: {right_dist}")
         return number_of_roads
-
-    def get_laser_distance(self, laser_msg):
-
-        angle_to_goal = abs(self.get_angle_to_goal(self.goal_x, self.goal_y))
-        #rospy.logwarn(f"Winkel: {abs(math.degrees(angle_to_goal))}")
-        
-        if not laser_msg.ranges:
-            #rospy.logwarn("Keine LaserScan-Daten verfügbar!")
-            return None
-
-    
-        angle_min = laser_msg.angle_min  # Startwinkel des Scans
-        angle_max = laser_msg.angle_max  # Maximaler Winkel des Scans
-        angle_increment = laser_msg.angle_increment  # Schrittweite zwischen den Scans
-        num_readings = len(laser_msg.ranges)  # Anzahl der Scanwerte
-
-
-        # Prüfe, ob der Winkel im Bereich des Scanners liegt
-        if angle_to_goal < math.degrees(angle_min) or angle_to_goal > math.degrees(angle_max):
-            #rospy.logwarn(f"Der gewünschte Winkel {math.degrees(angle_to_goal):.2f}° liegt außerhalb des Messbereichs! angle_min: {math.degrees(angle_min)}, angle_max: {math.degrees(angle_max)}")
-            return None
-
-        # Berechne den Index des Laserstrahls, der diesem Winkel entspricht
-        index = round((angle_to_goal - angle_min) / angle_increment)
-
-        if 0 <= index < num_readings:
-            #rospy.logwarn(f"Distanz_laser: {laser_msg.ranges[index]}")
-            return laser_msg.ranges[index]  # Rückgabe des Distanzwertes
-        else:
-            #rospy.logwarn(f"Berechneter Index {index} liegt außerhalb des gültigen Bereichs (0-{num_readings-1})")
-            return None
 
     def check_if_node_saved(self):
         if self.curr_node.node_1 is None:
@@ -768,9 +723,8 @@ class Turtlebot3Explorer:
         rate = rospy.Rate(10)
         
         while not rospy.is_shutdown():
-            if self.goal_x:
+            if self.goal_x == 0: # can not write self.goal_x because he is considering the 0 as None
                 if not self.called:
-                    rospy.loginfo("here i am")
                     self.just_once_called() 
                 self.move()
                 rate.sleep()

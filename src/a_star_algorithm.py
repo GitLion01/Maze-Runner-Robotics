@@ -218,7 +218,7 @@ class AStarNode:
         start_value = self.grid[int(self.start_pixel[1])][int(self.start_pixel[0])]
         goal_value = self.grid[int(self.goal_pixel[1])][int(self.goal_pixel[0])]
         if start_value != 0 or goal_value != 0:
-            rospy.logerr(f"Start oder Ziel liegen auf Hindernissen: Start={start_value}, Ziel={goal_value}, start_pixel_y={self.start_pixel[1]}")
+            rospy.logerr(f"Start oder Ziel liegen auf Hindernissen: Start={start_value}, Ziel={goal_value}, goal_pixel_y ={self.goal_pixel[0]}, goal_pixel_x = {self.goal_pixel[1]}")
             return  # Abbrechen, wenn ungültig
         
 
