@@ -2,8 +2,7 @@
 
 import heapq
 import rospy
-import numpy as np
-from turtlebot_maze_navigation.msg import MapData
+from maze_bot_control.msg import MapData
 from geometry_msgs.msg import Pose, PoseArray, Point
 
 class Node:
