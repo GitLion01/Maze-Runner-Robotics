@@ -3,9 +3,8 @@
 import rospy 
 from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import Point, PointStamped
-from maze_bot_control.msg import MapData
-from sensor_msgs.msg import PointCloud, ChannelFloat32, PointCloud2,PointField
-from geometry_msgs.msg import Point32
+from turtlebot_maze_navigation.msg import MapData
+from sensor_msgs.msg import PointCloud,  PointCloud2,PointField
 import sensor_msgs.point_cloud2 as pc2
 from std_msgs.msg import Header
 
@@ -129,7 +128,7 @@ class RobotTracker:
     def modify_the_map(self):
         # Create modified map with extended walls
         self.map_2d_modified = [list(row) for row in self.map_2d]
-        wall_extension = 5  # Number of cells to extend walls
+        wall_extension = 4  # Number of cells to extend walls
         self.add_100_to_the_next_points(self.height,self.width,wall_extension)
         
         # Convert modified 2D map back to 1D
