@@ -3,7 +3,7 @@
 import rospy 
 from nav_msgs.msg import Odometry, OccupancyGrid
 from geometry_msgs.msg import Point, PointStamped
-from turtlebot_maze_navigation.msg import MapData
+from maze_bot_control.msg import MapData
 from sensor_msgs.msg import PointCloud, ChannelFloat32, PointCloud2,PointField
 from geometry_msgs.msg import Point32
 import sensor_msgs.point_cloud2 as pc2

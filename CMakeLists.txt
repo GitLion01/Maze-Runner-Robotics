@@ -12,6 +12,21 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_msgs
+  message_generation
+  nav_msgs
+)
+
+
+add_message_files (
+  FILES
+  MapData.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+  nav_msgs
 )
 
 ## System dependencies are found with CMake's conventions
