@@ -129,7 +129,7 @@ class RobotTracker:
     def modify_the_map(self):
         # Create modified map with extended walls
         self.map_2d_modified = [list(row) for row in self.map_2d]
-        wall_extension = 4  # Number of cells to extend walls
+        wall_extension = 5  # Number of cells to extend walls
         self.add_100_to_the_next_points(self.height,self.width,wall_extension)
         
         # Convert modified 2D map back to 1D

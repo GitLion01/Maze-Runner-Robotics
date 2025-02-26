@@ -5,7 +5,7 @@
     <arg name="x_start" default="-0.75" />
     <arg name="y_start" default="0.75" />
     <arg name="yaw_start" default="3.141592654" />
-    <arg name="maze_id" value="9"/>
+    <arg name="maze_id" value="10"/>
 
 
     <!-- <node pkg="rviz" type="rviz" name="rviz" required="true"
