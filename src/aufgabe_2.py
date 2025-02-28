@@ -396,12 +396,19 @@ class Turtlebot3Explorer:
 
     def get_laser_distance(self, laser_msg):
         if not laser_msg:
+            rospy.loginfo("none")
             return None
-        
-        for ranges in laser_msg.ranges:
-            if ranges >= 10:
-                index = laser_msg.ranges.index(ranges)
-        return index
+
+        i=0
+        while i < 351:
+            idx = int((math.radians(i) - laser_msg.angle_min) / laser_msg.angle_increment)
+            # Check if idx is within valid range
+            if 0 <= idx < len(laser_msg.ranges):
+                direct = laser_msg.ranges[idx]
+                if direct == float('inf'):
+                    return i  # Return the angle (in degrees) where we found the infinite reading
+            i += 1
+        return None
 
     def check_if_node_saved(self):
         if self.curr_node.node_1 is None:
@@ -714,15 +721,11 @@ class Turtlebot3Explorer:
         rate = rospy.Rate(10)
         
         while not rospy.is_shutdown():
-            if self.get_laser_distance:
-                index =  self.get_laser_distance
-                rospy.loginfo(f"index: {index}")
-            # if self.goal_x:
-            #     if not self.called:
-            #         rospy.loginfo("here i am")
-            #         self.just_once_called() 
-            #     self.move()
-            #     rate.sleep()
+            if self.goal_x:
+                if not self.called:
+                    self.just_once_called() 
+                self.move()
+            rate.sleep()
             
 
     def stop_robot(self):
