@@ -37,8 +37,8 @@ class Turtlebot3Explorer:
         self.return_to_x = []  # Store X coordinates of blocked dead-ends
         self.return_to_y = []  # Store Y coordinates of blocked dead-ends
 
-        self.current_x_real = 0.03374290466308594
-        self.current_y_real = -0.0013123006792739
+        self.current_x_real = -0.75
+        self.current_y_real = 0.75
         self.goal_x = None
         self.goal_y = None
 
@@ -219,8 +219,6 @@ class Turtlebot3Explorer:
         cmd_vel = Twist()
         front_dist = self.distances.get('front', float('inf'))
         direct = self.distances.get('direct', float('inf'))
-        right_back = self.distances.get('right_back', float('inf'))
-        left_back = self.distances.get('left_back', float('inf'))
         left = self.distances.get('left',float('inf'))
         right = self.distances.get('right',float('inf'))
 
@@ -296,7 +294,6 @@ class Turtlebot3Explorer:
 
     def rotate(self, direction):
         cmd_vel = Twist()
-
         if 0.75 < abs(self.current_yaw) < 2.25: #he is looking right or left
             self.to_direction_up_down= True
             if self.current_yaw < 0:
@@ -305,25 +302,7 @@ class Turtlebot3Explorer:
                 rotate_x = self.current_x_real + (direction * 0.5)
             rotate_y = self.current_y_real
             angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
-
-            while abs(angle_diff) > 0.05:
-                if abs(angle_diff) > 0.6:
-                    cmd_vel.angular.z = 2 if angle_diff > 0 else -2
-                elif abs(angle_diff) > 0.5:
-                    cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
-                elif abs(angle_diff) > 0.4:
-                    cmd_vel.angular.z = 1 if angle_diff > 0 else -1
-                elif abs(angle_diff) > 0.3:
-                    cmd_vel.angular.z = 0.8 if angle_diff > 0 else -0.8
-                elif abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-
-                self.cmd_vel_pub.publish(cmd_vel)
-                angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
+            
         else:
             self.to_direction_up_down= False
             rotate_x = self.current_x_real
@@ -333,25 +312,28 @@ class Turtlebot3Explorer:
                 rotate_y = self.current_y_real - (direction * 0.5)
             angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
 
-            while abs(angle_diff) > 0.05:
-                if abs(angle_diff) > 0.6:
-                    cmd_vel.angular.z = 2 if angle_diff > 0 else -2
-                elif abs(angle_diff) > 0.5:
-                    cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
-                elif abs(angle_diff) > 0.4:
-                    cmd_vel.angular.z = 1 if angle_diff > 0 else -1
-                elif abs(angle_diff) > 0.3:
-                    cmd_vel.angular.z = 0.8 if angle_diff > 0 else -0.8
-                elif abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+        while abs(angle_diff) > 0.05:
+            direct = self.distances.get('direct', float('inf'))
+            if abs(angle_diff) > 0.6:
+                cmd_vel.angular.z = 2 if angle_diff > 0 else -2
+            elif abs(angle_diff) > 0.5:
+                cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
+            elif abs(angle_diff) > 0.4:
+                cmd_vel.angular.z = 1 if angle_diff > 0 else -1
+            elif abs(angle_diff) > 0.3:
+                cmd_vel.angular.z = 0.8 if angle_diff > 0 else -0.8
+            elif abs(angle_diff) > 0.2 and direct > 1:
+                rospy.loginfo(f"direct bigger than 1")
+                cmd_vel.angular.z = 0.2 if angle_diff > 0 else -0.2
+            elif abs(angle_diff) > 0.1 and direct > 2:
+                rospy.loginfo(f"direct bigger than 2")
+                cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+            elif abs(angle_diff) > 0.05 and direct > 2.5:
+                rospy.loginfo(f"direct bigger than 2.5")
+                cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
 
-                self.cmd_vel_pub.publish(cmd_vel)
-                angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
-
+            self.cmd_vel_pub.publish(cmd_vel)
+            angle_diff = self.get_angle_to_goal(rotate_x,rotate_y)
         # Stop rotation
         cmd_vel.angular.z = 0
         self.cmd_vel_pub.publish(cmd_vel)
@@ -555,48 +537,33 @@ class Turtlebot3Explorer:
         if abs(angle_diff) > 0.6:
             cmd_vel.angular.z = 2.84 if angle_diff > 0 else -2.84
             cmd_vel.linear.x = 0.0
-        if abs(angle_diff) > 0.5:
+        elif abs(angle_diff) > 0.5:
             cmd_vel.angular.z = 2 if angle_diff > 0 else -2
             cmd_vel.linear.x = 0.0
         elif abs(angle_diff) > 0.4:
             cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
             cmd_vel.linear.x = 0.0
         elif abs(angle_diff) > 0.3:
-            cmd_vel.angular.z = 1 if angle_diff > 0 else -1
-            cmd_vel.linear.x = 0.0
+                cmd_vel.angular.z = 1 if angle_diff > 0 else -1
+        
         else:
             if distance_to_goal > 0.22:
-                cmd_vel.linear.x = 0.22
-                if abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-                else:
-                    cmd_vel.angular.z = 0
+                cmd_vel.linear.x = 0.22 
             elif distance_to_goal > 0.2:
                 cmd_vel.linear.x = 0.21
-                if abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-                else:
-                    cmd_vel.angular.z = 0
-            elif distance_to_goal > 0.1:
+            elif distance_to_goal > 0.05:
                 cmd_vel.linear.x = 0.15
-                if abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-                else:
-                    cmd_vel.angular.z = 0
             else:
                 cmd_vel.linear.x = 0
+            
+            if abs(angle_diff) > 0.2:
+                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
+            elif abs(angle_diff) > 0.1:
+                cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+            elif abs(angle_diff) > 0.05:
+                cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
+            else:
+                cmd_vel.angular.z = 0
 
         self.cmd_vel_pub.publish(cmd_vel)
     
