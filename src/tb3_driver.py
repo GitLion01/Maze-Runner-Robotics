@@ -91,7 +91,7 @@ class PathFollower:
     
     def move_to_goal(self):
         """Generate velocity commands to move towards the current goal."""
-        if not self.path or self.current_goal_index >= len(self.path):
+        if not self.path:
             return self.stop_robot()
         
         self.goal_x , self.goal_y = self.path_meter[self.current_goal_index]
@@ -102,70 +102,31 @@ class PathFollower:
         
         cmd_vel = Twist()
 
-        marker = Marker()
-        marker.header.frame_id = "map"  # Use the appropriate frame_id
-        marker.header.stamp = rospy.Time.now()
-        marker.ns = "temp_goals"
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.pose.position.x = self.goal_x
-        marker.pose.position.y = self.goal_y
-        marker.pose.position.z = 0.0
-        marker.pose.orientation.w = 1.0
-        marker.scale.x = 0.1  # Size of the sphere
-        marker.scale.y = 0.1
-        marker.scale.z = 0.1
-        marker.color.r = 1.0  # Red color
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0  # Fully opaque
-        marker.lifetime = rospy.Duration(0)  # 0 = forever
         
-        # Publish the marker
-        self.temp_goal_pub.publish(marker)
+        #else:
+        cmd_vel.linear.x = 0.22
 
         if abs(angle_diff) > 0.6:
             cmd_vel.angular.z = 2.84 if angle_diff > 0 else -2.84
-            cmd_vel.linear.x = 0.0
-        if abs(angle_diff) > 0.5:
-            cmd_vel.angular.z = 2 if angle_diff > 0 else -2
-            cmd_vel.linear.x = 0.0
         elif abs(angle_diff) > 0.4:
-            cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
-            cmd_vel.linear.x = 0.0
+            cmd_vel.angular.z = 2 if angle_diff > 0 else -2
         elif abs(angle_diff) > 0.3:
-            cmd_vel.angular.z = 1 if angle_diff > 0 else -1
-            cmd_vel.linear.x = 0.0
+            cmd_vel.angular.z = 1.8 if angle_diff > 0 else -1.8
+        elif abs(angle_diff) > 0.2:
+            cmd_vel.angular.z = 1.5 if angle_diff > 0 else -1.5
+        elif abs(angle_diff) > 0.1:
+            cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
+        elif abs(angle_diff) > 0.05:
+            cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
         else:
-            if distance_to_goal > 0.22:
-                cmd_vel.linear.x = 0.22
-                if abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-                else:
-                    cmd_vel.angular.z = 0
-            elif distance_to_goal > 0.2:
-                cmd_vel.linear.x = 0.21
-                if abs(angle_diff) > 0.2:
-                    cmd_vel.angular.z = 0.15 if angle_diff > 0 else -0.15
-                elif abs(angle_diff) > 0.1:
-                    cmd_vel.angular.z = 0.1 if angle_diff > 0 else -0.1
-                elif abs(angle_diff) > 0.05:
-                    cmd_vel.angular.z = 0.05 if angle_diff > 0 else -0.05
-                else:
-                    cmd_vel.angular.z = 0
+            cmd_vel.angular.z = 0
+                
         
         # Check if we've reached the current waypoint
-        if distance_to_goal < 0.23:
-            self.current_goal_index += 1
-            if self.current_goal_index >= len(self.path):
-                rospy.loginfo("Reached final goal!")
-                return self.stop_robot()
-
+        if distance_to_goal < 0.22:
+            if self.current_goal_index +1 < len(self.path_meter):
+                self.current_goal_index += 1
+            
         return cmd_vel
     
 

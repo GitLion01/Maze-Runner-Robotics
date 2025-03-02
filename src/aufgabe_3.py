@@ -42,7 +42,6 @@ class Turtlebot3Explorer:
         self.goal_x = None
         self.goal_y = None
 
-        rospy.logwarn(f"x: {self.current_x_real}, y: {self.current_y_real}")
         self.current_yaw = 0.0
         
         self.laser_scan_msg = 0
@@ -116,7 +115,6 @@ class Turtlebot3Explorer:
     def map_callback(self, msg: OccupancyGrid):
 
         if not msg.data or len(msg.data) == 0:
-            rospy.logwarn("Leere oder ungültige SLAM-Daten empfangen. map_callback wird nicht ausgeführt.")
             return
 
     def laser_scan_callback(self, msg):
@@ -197,13 +195,10 @@ class Turtlebot3Explorer:
             return
         
         if node.node_1:
-            rospy.logwarn(f"{'  ' * depth}node_1: {node.node_1.x}, {node.node_1.y}, {node.node_1.number_of_roads}")
             self.log_all_nodes(node.node_1, depth + 1)
         if node.node_2:
-            rospy.logwarn(f"{'  ' * depth}node_2: {node.node_2.x}, {node.node_2.y}, {node.node_2.number_of_roads}")
             self.log_all_nodes(node.node_2, depth + 1)
         if node.node_3:
-            rospy.logwarn(f"{'  ' * depth}node_3: {node.node_3.x}, {node.node_3.y}, {node.node_3.number_of_roads}")
             self.log_all_nodes(node.node_3, depth + 1)
 
     def just_once_called(self):
@@ -231,21 +226,16 @@ class Turtlebot3Explorer:
 
         #self.log_all_nodes(self.curr_parent)
         if  (left > 0.58 ) or (right > 0.58): #because at the beginnig i receive inf from the laser
-            rospy.loginfo("right or left is clear")
             rospy.sleep(0.5) # to make the robot move a little bit forward
             if self.curr_node.parent is None or (not (self.current_x_real - 0.6 < self.curr_node.parent.x < self.current_x_real + 0.6) or
                                                     not (self.current_y_real - 0.6 < self.curr_node.parent.y < self.current_y_real + 0.6)
                                                 ):
-                rospy.loginfo(f"x: {self.curr_node.x}, y: {self.curr_node.y}")
                 if self.curr_node.x == 0 and self.curr_node.y == 0:
                     self.curr_node.x = self.current_x_real
                     self.curr_node.y = self.current_y_real
                     self.curr_node.number_of_roads = self.number_of_roads()
-                    rospy.logwarn(f"new_x: {self.curr_node.x}, new_y: {self.curr_node.y}, roads {self.curr_node.number_of_roads}")
                 
-                #rospy.loginfo(f"parent_x: {self.curr_node.parent.x}, y: {self.curr_node.parent.y}")
                 self.direction= self.get_the_new_orientation() #after this line the current node is changed to the child if the child is not already existing
-                rospy.loginfo(f"direction {self.direction}")
 
                 if self.direction == 1 or self.direction == -1:
                     cmd_vel.linear.x = 0.0
@@ -254,16 +244,12 @@ class Turtlebot3Explorer:
                 
                 elif self.direction == 0:
                     if self.get_distance_to_temp_goal(self.temp_goal_x,self.temp_goal_y) < 0.2:
-                        rospy.loginfo("1111")
                         if right > 0.5 and left > 0.5:
                             self.get_new_goal(direct-0.3,0.3,True) # hier ist true oder false egal weil diff wird 0 sein
-                            rospy.loginfo(f"right1: {right}, left1: {left}",)
                         elif (left < right):
                             self.get_new_goal(direct-0.3,left,False) # True for right and False for left
-                            rospy.loginfo(f"left1: {left}")
                         else:
                             self.get_new_goal(direct-0.3,right,True)
-                            rospy.loginfo(f"right1: {right}")
 
                     if front_dist < 0.3:
                         cmd_vel.linear.x = 0.1
@@ -275,20 +261,15 @@ class Turtlebot3Explorer:
                     # No movement if no suitable direction found
                     self.return_to_the_last_crossroads()
                     self.curr_node = self.curr_node.parent
-                    rospy.loginfo(f"left_back: {left_back}, left: {left}")
-                    rospy.loginfo(f"right_back: {right_back}, right: {right}")
 
             if hasattr(self, 'last_direction') and front_dist > 0.1:
                 if self.get_distance_to_temp_goal(self.temp_goal_x,self.temp_goal_y) < 0.2:
                     if right > 0.5 and left > 0.5:
                         self.get_new_goal(direct-0.3,0.3,True) # hier ist true oder false egal weil diff wird 0 sein
-                        rospy.loginfo(f"right1: {right}, left1: {left}",)
                     elif (left < right):
                         self.get_new_goal(direct-0.3,left,False) # True for right and False for left
-                        rospy.loginfo(f"left1: {left}")
                     else:
                         self.get_new_goal(direct-0.3,right,True)
-                        rospy.loginfo(f"right1: {right}")
                         
                 self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
                 
@@ -299,23 +280,17 @@ class Turtlebot3Explorer:
                 if self.get_distance_to_temp_goal(self.temp_goal_x,self.temp_goal_y) < 0.2:
                     if right > 0.5 and left > 0.5:
                         self.get_new_goal(direct-0.3,0.3,True) # hier ist true oder false egal weil diff wird 0 sein
-                        rospy.loginfo(f"right1: {right}, left1: {left}",)
                     elif (left < right):
                         self.get_new_goal(direct-0.3,left,False) # True for right and False for left
-                        rospy.loginfo(f"left1: {left}")
                     else:
                         self.get_new_goal(direct-0.3,right,True)
-                        rospy.loginfo(f"right1: {right}")
 
                 self.move_to_goal(self.temp_goal_x,self.temp_goal_y)
                 
 
         if self.laser_scan_msg != 0:
                 if self.check_closed_way():
-                    rospy.logwarn(f"closed way")
                     self.return_to_the_last_crossroads()
-                    rospy.loginfo(f"2 left_back: {left_back}, left: {left}")
-                    rospy.loginfo(f"2 right_back: {right_back}, right: {right}")
                     self.curr_node = self.curr_node.parent #after returning to the parent set the current node to the parent
 
 
@@ -387,13 +362,10 @@ class Turtlebot3Explorer:
 
         if right_dist > 0.5 and left_dist > 0.5:
             self.get_new_goal(direct-0.3,0.3,True) # hier ist true oder false egal weil diff wird 0 sein
-            rospy.loginfo(f"right1: {right_dist}, left1: {left_dist}",)
         elif (left_dist < right_dist):
             self.get_new_goal(direct-0.3,left_dist,False) # True for right and False for left
-            rospy.loginfo(f"left1: {left_dist}")
         else:
             self.get_new_goal(direct-0.3,right_dist,True)
-            rospy.loginfo(f"right1: {right_dist}")
 
     def number_of_roads(self): 
         direct = self.distances.get('direct', float('inf'))
@@ -404,13 +376,10 @@ class Turtlebot3Explorer:
         number_of_roads =0
         if direct > 0.6:
             number_of_roads += 1
-            rospy.loginfo(f"front: {direct}")
         if left_dist > 0.6:
             number_of_roads +=1
-            rospy.loginfo(f"left: {left_dist}")
         if right_dist > 0.6:
             number_of_roads +=1
-            rospy.loginfo(f"right: {right_dist}")
         return number_of_roads
 
     def check_if_node_saved(self):
@@ -419,21 +388,18 @@ class Turtlebot3Explorer:
             self.curr_node.node_1.visited = True #set it to visited
             self.curr_node.node_1.parent = self.curr_node #add the node itself as parent to move to the child
             self.curr_node = self.curr_node.node_1 #set the current nod to the first son, to add the x and y when you arrive it
-            #rospy.logwarn(f"moved to the first")
             return False
         elif self.curr_node.node_2 is None and self.curr_node.number_of_roads >= 2:
             self.curr_node.node_2 = Node() 
             self.curr_node.node_2.visited = True
             self.curr_node.node_2.parent = self.curr_node
             self.curr_node = self.curr_node.node_2
-            #rospy.logwarn(f"moved to the second")
             return False
         elif self.curr_node.node_3 is None and self.curr_node.number_of_roads == 3:
             self.curr_node.node_3 = Node()
             self.curr_node.node_3.visited = True
             self.curr_node.node_3.parent = self.curr_node
             self.curr_node = self.curr_node.node_3
-            #rospy.logwarn(f"moved to the third")
             return False
         else:
             return True
@@ -475,33 +441,22 @@ class Turtlebot3Explorer:
 
     def get_new_goal(self,distance, dist_left_right, right_wall):
         difference = dist_left_right - 0.3
-        rospy.loginfo(f"yaw: {self.current_yaw}, right: {right_wall}")
         if 0.75 < abs(self.current_yaw) < 2.25:
             #x is fixed
                 if (right_wall and 0.75 < self.current_yaw < 2.25) or (not right_wall and -2.25 < self.current_yaw < -0.75): # (rechte Wand und guckt rechts) or (linke Wand und guckt links)
                     x = self.current_x_real - difference
-                    rospy.loginfo(f"1")
                 elif (not right_wall and 0.75 < self.current_yaw < 2.25) or (right_wall and -2.25 < self.current_yaw < -0.75): # (linke Wand und guckt rechts) or (rechte Wand und guckt links)
                     x= self.current_x_real + difference
-                    rospy.loginfo(f"2")
 
                 y= self.get_the_y(distance)
-                rospy.loginfo(f"diff: {difference}")
-                rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}")
-                rospy.loginfo(f"goal y : {y}, curr y : {self.current_y_real}")
         else:
             #y is fixed
                 if (right_wall and abs(self.current_yaw) > 2.25) or (not right_wall and abs(self.current_yaw) < 0.75): # (rechte Wand und guckt oben) or (linke Wand und guckt unten)
                     y= self.current_y_real - difference
-                    rospy.loginfo("3")
                 elif (not right_wall and abs(self.current_yaw) > 2.25) or (right_wall and abs(self.current_yaw) < 0.75): # (linke Wand und guckt oben) or (rechte Wand und guckt unten)
                     y= self.current_y_real + difference
-                    rospy.loginfo(f"4")
 
                 x= self.get_the_x(distance)
-                rospy.loginfo(f"diff: {difference}")
-                rospy.loginfo(f"goal x : {x}, curr x : {self.current_x_real}")
-                rospy.loginfo(f"goal y : {y}, curr x : {self.current_y_real}")
                       
         self.temp_goal_x = x
         self.temp_goal_y = y
@@ -556,11 +511,9 @@ class Turtlebot3Explorer:
 
     def return_to_the_last_crossroads(self):
         if self.curr_node is None:
-            rospy.logwarn("Node besitzt kein Parent")
             return
         goal_x, goal_y = self.curr_node.parent.x, self.curr_node.parent.y
 
-        rospy.loginfo(f"in the return to the parent: {goal_x},   {goal_y}, {self.curr_node.parent.number_of_roads}")
         distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
 
         cmd_vel = Twist()
@@ -568,7 +521,6 @@ class Turtlebot3Explorer:
         cmd_vel.linear.x = 0.0
         cmd_vel.angular.z = 0.0
         self.cmd_vel_pub.publish(cmd_vel)
-        #rospy.loginfo(f"das x: {cmd_vel.linear.x}")
         while distance_to_goal > 0.1:
             self.move_to_goal(goal_x, goal_y)
             distance_to_goal = self.get_distance_to_temp_goal(goal_x, goal_y)
@@ -576,7 +528,6 @@ class Turtlebot3Explorer:
         cmd_vel.linear.x = 0.0
         cmd_vel.angular.z = 0.0
         self.cmd_vel_pub.publish(cmd_vel)
-        rospy.loginfo(f"returned")
 
 
     '''
@@ -668,7 +619,6 @@ class Turtlebot3Explorer:
         cmd_vel.linear.x = 0.0
         cmd_vel.angular.z = 0.0
         self.cmd_vel_pub.publish(cmd_vel)
-        rospy.loginfo("goal reached")
 
 if __name__ == '__main__':
     try:
