@@ -23,15 +23,15 @@
 
     <group if="$(eval challenge_id == 2)">
         <node pkg="maze_bot_control" type="aufgabe_2.py" name="aufgabe2" output="screen">
-            <param name="x_start" value="$(arg x_start)"/>
-            <param name="y_start" value="$(arg y_start)"/>
+            <!-- <param name="x_start" value="$(arg x_start)"/>
+            <param name="y_start" value="$(arg y_start)"/> -->
         </node> 
     </group>
 
     <group if="$(eval challenge_id == 3)">
         <node pkg="maze_bot_control" type="aufgabe_3.py" name="aufgabe3" output="screen">
-            <param name="x_start" value="$(arg x_start)"/>
-            <param name="y_start" value="$(arg y_start)"/>
+            <!-- <param name="x_start" value="$(arg x_start)"/>
+            <param name="y_start" value="$(arg y_start)"/> -->
         </node> 
     </group>
 

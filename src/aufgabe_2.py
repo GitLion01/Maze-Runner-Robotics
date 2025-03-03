@@ -513,11 +513,6 @@ class Turtlebot3Explorer:
         self.cmd_vel_pub.publish(cmd_vel)
 
 
-    '''
-    return true if the road closed, false if not
-    it has to check it using the laser data (if there is no a x_distance between the points of the laser then it is closed)
-    the x_distance is smaller a little bit than the spaces between the walls (it needs to be tested and adjasted rightly)
-    '''
     def check_closed_way(self):
         left_dist = self.distances.get('left', float('inf'))
         right_dist = self.distances.get('right', float('inf'))
@@ -593,6 +588,5 @@ if __name__ == '__main__':
     try:
         explorer = Turtlebot3Explorer()
         explorer.control_loop()
-        #rospy.spin()  #to keep the node running
     except rospy.ROSInterruptException as e:
         rospy.loginfo(e)

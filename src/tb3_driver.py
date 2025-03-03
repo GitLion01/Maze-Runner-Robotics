@@ -16,17 +16,14 @@ class PathFollower:
         self.current_x = 0.0
         self.current_y = 0.0
         self.current_yaw = 0.0
-        self.path = None
         self.path_meter = None
         self.current_goal_index = 0
-        self.save_path_once = False
         self.save_real_path_once = False
 
         self.goal_x = 0
         self.goal_y = 0
 
         self.path_sub_real = None
-        self.path_sub = None
         self.already_oriented= False
 
 
@@ -34,7 +31,6 @@ class PathFollower:
         self.cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         self.odom_sub = rospy.Subscriber('/odom', Odometry, self.odom_callback)
         self.path_sub_real = rospy.Subscriber('/real_world_path', PoseArray, self.real_path_callback)
-        self.path_sub = rospy.Subscriber('/planned_path', PoseArray, self.path_callback)
         self.temp_goal_pub = rospy.Publisher('/temp_goal_pub', Marker, queue_size=10)
         
         # TF listener for coordinate transformations
@@ -51,15 +47,6 @@ class PathFollower:
         orientation_q = msg.pose.pose.orientation
         orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
         _, _, self.current_yaw = euler_from_quaternion(orientation_list)
-
-
-    def path_callback(self, msg):
-        """Receive and store the planned path."""
-        if not self.save_path_once:
-            self.save_path_once= True
-            self.path = [(pose.position.x, pose.position.y) for pose in msg.poses]
-            self.current_goal_index = 1
-
 
     def real_path_callback(self, msg):
         """Receive and store the planned path."""
@@ -91,7 +78,7 @@ class PathFollower:
     
     def move_to_goal(self):
         """Generate velocity commands to move towards the current goal."""
-        if not self.path:
+        if not self.path_meter:
             return self.stop_robot()
         
         self.goal_x , self.goal_y = self.path_meter[self.current_goal_index]
@@ -128,41 +115,6 @@ class PathFollower:
                 self.current_goal_index += 1
             
         return cmd_vel
-    
-
-    def check_line(self,goal_x,goal_y):
-        if self.current_goal_index+1 != len(self.path):
-            counter = 1
-            next_goal_x, next_goal_y = self.path[self.current_goal_index + counter]
-
-            while next_goal_x == goal_x:
-                counter += 1
-                if self.current_goal_index + counter < len(self.path):
-                    #rospy.loginfo(f"in!!!!!!!!!!!")
-                    next_goal_x,_ = self.path[self.current_goal_index + counter]
-                    if next_goal_x != goal_x:
-                        #rospy.loginfo(f"goal_x: {goal_x}, goal_y: {goal_y}, index : {self.current_goal_index} from x")
-                        self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
-                        return
-                else:
-                    self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
-                    return
-                    
-            counter = 1
-            while next_goal_y == goal_y:
-                counter += 1
-                #rospy.loginfo(f"counter: {counter}")
-                if self.current_goal_index + counter < len(self.path):
-                    #rospy.loginfo(f"in2222222222")
-                    _,next_goal_y = self.path[self.current_goal_index + counter]
-                    if next_goal_y != goal_y:
-                        self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
-                        #rospy.loginfo(f"next_goal_y: {next_goal_y}, goal_y: {goal_y}, index : {self.current_goal_index} from y")
-                        return
-                else:
-                    self.current_goal_index = max(self.current_goal_index + counter -2,self.current_goal_index)
-                    return
-        return
     
     
     def stop_robot(self):

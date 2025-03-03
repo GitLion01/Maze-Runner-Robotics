@@ -76,9 +76,6 @@ class AStar:
         while self.open_list:
             _, current = heapq.heappop(self.open_list)  # Knoten mit niedrigstem f-Wert
 
-            
-
-
             self.closed_list.add(current)
             if current.position == self.goal.position:
                     #rospy.logwarn("goal reached")
@@ -88,18 +85,6 @@ class AStar:
 
             # Nachbarn generieren
             current.get_neighbors(self.grid, self.closed_list)
-
-            """
-            f_cost_neighbors = []
-            for n in current.neighbors:
-                f_cost_neighbors.append(n.f_cost)
-            if not f_cost_neighbors:
-                rospy.logwarn(f"Keine gültigen Nachbarn für {current.position}.")
-                rospy.logwarn(f"Nachbarn: {[neighbor.position for neighbor in current.neighbors]}")
-                continue
-
-            h_cost_min = min(f_cost_neighbors)
-            """
 
             for neighbor in current.neighbors:
                 if neighbor in self.closed_list:
@@ -111,14 +96,6 @@ class AStar:
 
                 if neighbor.f_cost < current.f_cost or neighbor not in [n for _, n in self.open_list]:
                     # den neighbor nehmen, der uns näher zum ziel bringt
-                    """
-                    neighbor.parent = current
-                    current.prev = neighbor
-                    
-                    current = current.prev
-                    """
-
-                    
                     neighbor.g_cost = cost_neighbor
                     neighbor.h_cost = self.heuristic(neighbor.position, self.goal.position)
                     neighbor.f_cost = neighbor.g_cost + neighbor.h_cost
@@ -152,7 +129,6 @@ class AStarNode:
         self.temp_map_sub = rospy.Subscriber('/temp_map_data', MapData, self.map_callback)
 
         # Publisher
-        self.path_pub = rospy.Publisher("/planned_path", PoseArray, queue_size=10)
         self.real_world_path = rospy.Publisher("/real_world_path", PoseArray, queue_size=10)
 
         # Variablen
@@ -227,28 +203,10 @@ class AStarNode:
 
         if self.path:
             rospy.loginfo("Pfad gefunden!")
-            self.publish_path(self.path)
             self.publish_real_world_path(self.path)
         else:
             rospy.logwarn("Kein Pfad berechnet.")
             self.path=None
-
-    def publish_path(self, path):
-        """
-        Veröffentlicht den geplanten Pfad als PoseArray.
-        """
-        path_msg = PoseArray()
-        path_msg.header.stamp = rospy.Time.now()
-        path_msg.header.frame_id = "map"
-
-        for x, y, z in path:
-            pose = Pose()
-            pose.position.x = x
-            pose.position.y = y
-            pose.position.z = z
-            path_msg.poses.append(pose)
-
-        self.path_pub.publish(path_msg)
 
 
     def publish_real_world_path(self, path):

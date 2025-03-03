@@ -51,20 +51,6 @@ class RobotTracker:
     def set_goal(self, msg: Odometry):
         self.goal_x = msg.point.x
         self.goal_y = msg.point.y
-
-        # Calculate the pixel coordinates of the goal
-        pixel_goal_x = int((self.goal_x - self.map_origin_x) / self.map_resolution)
-        pixel_goal_y = int((self.goal_y - self.map_origin_y) / self.map_resolution)
-        
-        # Check if the goal is within map bounds and in a free space
-        if (0 <= pixel_goal_x < self.width and 0 <= pixel_goal_y < self.height and 
-            self.map_2d[pixel_goal_y][pixel_goal_x] == 0):
-            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
-        else:
-            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
-            rospy.logwarn(f"Valid goal: x={self.goal_x}, y={self.goal_y}")
-            rospy.logerr(f"Invalid goal position: map value={self.map_2d[pixel_goal_y][pixel_goal_x] if 0 <= pixel_goal_x < self.width and 0 <= pixel_goal_y < self.height else 'out of bounds'}")
-            
         
         if self.map is not None and not self.checked_once:
             self.checked_once = True
@@ -176,7 +162,7 @@ class RobotTracker:
                         for dx in range(-wall_extension, wall_extension + 1):
                             nx, ny = x + dx, y + dy
                             if 0 <= nx < width and 0 <= ny < height and not self.check_if_start_or_end_100(ny,nx):
-                                if self.map_2d[ny][nx] in [-1, 0]:  # If target cell is unknown or free
+                                if self.map_2d[ny][nx] == 0:  # If target cell is free
                                     self.map_2d_modified[ny][nx] = 100
                             if self.check_if_start_or_end_100(ny,nx):
                                 self.map_2d_modified[ny][nx] = 0
