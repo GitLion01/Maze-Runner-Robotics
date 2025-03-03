@@ -101,9 +101,7 @@ class AStar:
                     neighbor.f_cost = neighbor.g_cost + neighbor.h_cost
                     neighbor.f_cost = neighbor.g_cost + neighbor.h_cost
                     neighbor.parent = current
-                    if neighbor not in [n for _, n in self.open_list]:
-                        
-                        heapq.heappush(self.open_list, (neighbor.f_cost, neighbor))
+                    
 
 
                 # Nachbarn in die Open List einfügen, wenn noch nicht vorhanden
@@ -123,10 +121,6 @@ class AStarNode:
         self.goal_sub = rospy.Subscriber("/goal_point", Point, self.goal_callback)
         self.start_sub = rospy.Subscriber("/start_point", Point, self.start_callback)
 
-        # für Aufgabe 2
-        self.temp_start_sub = rospy.Subscriber('/temp_start_point', Point, self.start_callback)
-        self.temp_goal_sub = rospy.Subscriber('/temp_goal_point', Point, self.goal_callback)
-        self.temp_map_sub = rospy.Subscriber('/temp_map_data', MapData, self.map_callback)
 
         # Publisher
         self.real_world_path = rospy.Publisher("/real_world_path", PoseArray, queue_size=10)
