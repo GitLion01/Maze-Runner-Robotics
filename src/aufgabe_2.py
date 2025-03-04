@@ -565,16 +565,35 @@ class Turtlebot3Explorer:
         self.cmd_vel_pub.publish(cmd_vel)
     
 
+    def laser_dist(self):
+        if not self.laser_scan_msg: 
+            return None
+
+        i = 0
+        while i < 361:
+            idx = int((math.radians(i) - self.laser_scan_msg.angle_min) / self.laser_scan_msg.angle_increment)
+            # Check if idx is within valid range
+            if 0 <= idx < len(self.laser_scan_msg.ranges):
+                index = self.laser_scan_msg.ranges[idx]
+                if index == float('inf'):
+                    return i
+            i += 1
+    
+        return None
+
     def control_loop(self):
         # Hauptkontrollschleife
         rate = rospy.Rate(10)
         
         while not rospy.is_shutdown():
-            if self.goal_x:
-                if not self.called:
-                    self.just_once_called() 
-                self.move()
-                rate.sleep()
+            if self.laser_dist():
+                rospy.loginfo(self.laser_dist())
+            rate.sleep()
+            # if self.goal_x:
+            #     if not self.called:
+            #         self.just_once_called() 
+            #     self.move()
+            #     rate.sleep()
             
 
     def stop_robot(self):
