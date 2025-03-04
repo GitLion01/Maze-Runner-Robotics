@@ -2,13 +2,15 @@
 <launch>
 
     <arg name="challenge_id" default="2" />
-    <arg name="x_start" default="-0.75" />
-    <arg name="y_start" default="0.75" />
+    <arg name="x_start" default="0.75" />
+    <arg name="y_start" default="-0.75" />
     <arg name="yaw_start" default="3.141592654" />
     <arg name="maze_id" value="8"/>
     
     <group if="$(eval challenge_id == 1)">
         <node pkg="maze_bot_control" type="map_loader.py" name="map_loader" output="screen">
+            <param name="x_start" value="$(arg x_start)"/>
+            <param name="y_start" value="$(arg y_start)"/>
         </node>
 
         <!-- A*-Planner-Node-->
@@ -23,15 +25,15 @@
 
     <group if="$(eval challenge_id == 2)">
         <node pkg="maze_bot_control" type="aufgabe_2.py" name="aufgabe2" output="screen">
-            <!-- <param name="x_start" value="$(arg x_start)"/>
-            <param name="y_start" value="$(arg y_start)"/> -->
+            <param name="x_start" value="$(arg x_start)"/>
+            <param name="y_start" value="$(arg y_start)"/>
         </node> 
     </group>
 
     <group if="$(eval challenge_id == 3)">
         <node pkg="maze_bot_control" type="aufgabe_3.py" name="aufgabe3" output="screen">
-            <!-- <param name="x_start" value="$(arg x_start)"/>
-            <param name="y_start" value="$(arg y_start)"/> -->
+            <param name="x_start" value="$(arg x_start)"/>
+            <param name="y_start" value="$(arg y_start)"/>
         </node> 
     </group>
 

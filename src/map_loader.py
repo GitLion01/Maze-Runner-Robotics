@@ -20,9 +20,10 @@ class RobotTracker:
         self.map_2d = None # Placeholder for 2D costmap
         # Set a dummy goal point in map coordinates
 
-        self.start_x = 0.03374290466308594
-        self.start_y = -0.0013123006792739
-        self.start_z = 0
+        self.start_x = - rospy.get_param('~x_start', 0) - 0.75
+        self.start_y = - rospy.get_param('~y_start', 0) + 0.75
+        self.start_z = rospy.get_param('~z_start', 0)
+        
         
         self.goal_x = None
         self.goal_y = None
